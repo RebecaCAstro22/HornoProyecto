@@ -613,6 +613,124 @@
       text-align: center;
     }
 
+    /* HORNO 3D */
+    .oven3d-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .oven3d-canvas {
+      width: 100%;
+      height: 280px;
+      display: block;
+      border-radius: 14px;
+      background: radial-gradient(ellipse at 50% 72%, rgba(255, 255, 255, 0.14), rgba(15, 23, 42, 0.16) 70%);
+      touch-action: pan-y;
+      cursor: grab;
+    }
+
+    .oven3d-canvas:active {
+      cursor: grabbing;
+    }
+
+    .oven3d-legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: rgba(219, 234, 254, 0.85);
+    }
+
+    .oven3d-scale {
+      position: relative;
+      flex: 1;
+      height: 6px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #3b82f6 0%, #38bdf8 22.2%, #fbbf24 40%, #f97316 57.8%, #ef4444 77.8%, #b91c1c 100%);
+    }
+
+    .oven3d-limit {
+      position: absolute;
+      top: -4px;
+      bottom: -4px;
+      width: 2px;
+      border-radius: 2px;
+      background: #ffffff;
+      opacity: 0.85;
+    }
+
+    .oven3d-marker {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid var(--blue-800);
+      transform: translate(-50%, -50%);
+      transition: left 0.6s ease, opacity 0.3s ease;
+    }
+
+    .oven3d-tools {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .oven3d-btn {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #eff6ff;
+      background: rgba(15, 23, 42, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .oven3d-btn:hover {
+      background: rgba(15, 23, 42, 0.42);
+    }
+
+    .oven3d-btn.active {
+      background: #ffffff;
+      color: var(--blue-800);
+    }
+
+    /* ALARMA DE TEMPERATURA DE LA TAPA */
+    .alarm-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .alarm-banner.show {
+      display: flex;
+    }
+
+    .alarm-banner.warn {
+      background: #fffbeb;
+      border-color: #fde68a;
+      color: #92400e;
+    }
+
+    .alarm-banner svg {
+      flex-shrink: 0;
+    }
+
     .hero-power-footer {
       display: flex;
       flex-direction: column;
@@ -1380,6 +1498,12 @@
       .desktop-header {
         flex-wrap: wrap;
       }
+      .top-status-pill {
+        flex-wrap: wrap;
+        justify-content: center;
+        border-radius: 18px;
+        max-width: 100%;
+      }
     }
   </style>
 </head>
@@ -1411,6 +1535,11 @@
           <span class="val-big" id="pillTempObjetivo">40.0°C</span>
         </div>
         <div class="pill-divider"></div>
+        <div class="pill-metric">
+          <span>Último dato</span>
+          <span class="val-big" id="pillLastData">Sin señal</span>
+        </div>
+        <div class="pill-divider"></div>
         <div class="pill-text-status" id="pillStatusMsg">En espera</div>
       </div>
 
@@ -1427,6 +1556,15 @@
         </button>
       </div>
     </header>
+
+    <div class="alarm-banner" id="alarmBanner" role="alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <span id="alarmText"></span>
+    </div>
 
     <!-- ======================================================== -->
     <!-- VISTA 1: DASHBOARD PRINCIPAL                             -->
@@ -1490,27 +1628,20 @@
           </div>
 
           <div class="lunchbox-stage">
-            <div class="lunchbox-sim" id="lunchboxSim" aria-label="Simulación visual de lonchera térmica">
-              <div class="lunchbox-waves" aria-hidden="true">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-              <div class="lunchbox-handle"></div>
-              <div class="lunchbox-lid">
-                <span class="lunchbox-clasp"></span>
-                <span class="lunchbox-clasp"></span>
-              </div>
-              <div class="lunchbox-body">
-                <div class="lunchbox-vent">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+            <div class="oven3d-wrap" id="lunchboxSim">
+              <canvas class="oven3d-canvas" id="oven3dCanvas" role="img" aria-label="Lonchera en 3D con la tapa y la secadora. Arrastra para girar."></canvas>
+              <div class="oven3d-legend">
+                <span>20°</span>
+                <div class="oven3d-scale">
+                  <span class="oven3d-limit" style="left: 77.8%;" title="Límite de la tapa de PLA (~55 °C)"></span>
+                  <span class="oven3d-marker" id="oven3dMarker"></span>
                 </div>
-                <div class="lunchbox-led-bar">
-                  <span class="lunchbox-led"></span>
-                  <span id="lunchboxLedText">REPOSO</span>
-                </div>
+                <span>65°</span>
+              </div>
+              <div class="oven3d-tools">
+                <button type="button" class="oven3d-btn" id="oven3dLidBtn">Abrir tapa</button>
+                <button type="button" class="oven3d-btn" id="oven3dSpinBtn">Girar solo</button>
+                <button type="button" class="oven3d-btn" id="oven3dResetBtn">Vista inicial</button>
               </div>
             </div>
             <div class="lunchbox-subtext" id="lunchboxSubtext">Secadora apagada</div>
@@ -1849,6 +1980,7 @@
     let triacActive = false;
     let currentModo = 'auto'; // 'auto', 'manual', 'off'
     let manualState = false;  // true = ON, false = OFF en modo manual
+    let lastDataAt = 0;       // hora del último dato recibido (ESP32 o simulación)
     let faseESP = '';         // 'NORMAL', 'RAFAGA' o 'ESPERA' (modo automatico del ESP32)
 
     // TIEMPOS (en segundos)
@@ -2154,10 +2286,11 @@
       document.getElementById('centerTempVal').textContent = '--.-';
       document.getElementById('actualDisplaySub').textContent = '--.-';
       document.getElementById('pillStatusMsg').textContent = 'Sin conexión ESP32';
+      lastDataAt = 0;
 
       const pulseBadge = document.getElementById('rangePulseBadge');
       pulseBadge.className = 'range-pulse-indicator';
-      pulseBadge.innerHTML = '<span style="color:#bfdbfe;">●</span> <span>Esperando ESP32</span>';
+      pulseBadge.innerHTML = '<span id="rangePulseDot" style="color:#bfdbfe;">●</span> <span id="rangePulseText">Esperando ESP32</span>';
 
       const heroBadge = document.getElementById('heroBadgeStatus');
       heroBadge.className = 'badge-suboptimal';
@@ -2398,6 +2531,7 @@
         return;
       }
       consecutiveErrors = 0;
+      lastDataAt = Date.now();
 
       if (data.temperatura !== null && data.temperatura !== undefined) {
         actualTemp = data.temperatura;
@@ -3419,6 +3553,542 @@
     drawPreviewChart();
     updateLoop();
     setInterval(updateLoop, 1200);
+  </script>
+  <script>
+    /* =====================================================================
+       HORNO 3D + SIMULACIÓN DEL AIRE CALIENTE
+       Hecho a mano con canvas 2D (sin librerías): funciona conectado a la
+       red Horno4_0 del ESP32, que no tiene internet.
+       Medidas en mm tomadas de tapa_superior.scad (Hornito Base).
+       Usa las variables del dashboard: actualTemp, targetTemp, triacActive,
+       powerLevel, simMode, lastDataAt.
+       ===================================================================== */
+    (function () {
+      const LIMITE_TAPA = 55;   // °C: el PLA se empieza a ablandar ~55-60 °C
+      const LIFT = 110;         // cuánto sube la tapa al abrirla (mm)
+      const CAMD = 900;         // distancia de la cámara (perspectiva)
+
+      const canvas = document.getElementById('oven3dCanvas');
+      if (!canvas || !canvas.getContext) return;
+      const ctx = canvas.getContext('2d');
+      const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+      let W = 1, H = 1, DPR = 1;
+      function resize() {
+        const r = canvas.getBoundingClientRect();
+        DPR = Math.min(window.devicePixelRatio || 1, 2);
+        W = Math.max(1, r.width);
+        H = Math.max(1, r.height);
+        canvas.width = Math.round(W * DPR);
+        canvas.height = Math.round(H * DPR);
+      }
+      if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
+      else window.addEventListener('resize', resize);
+      resize();
+
+      // ---------------- utilidades ----------------
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      function hex(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+      function mix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+      function rgba(c, a) { return 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + a + ')'; }
+
+      // Escala de calor (igual que la barra de la leyenda: 20 °C → 65 °C)
+      const HEAT_STOPS = [[20, hex('#3b82f6')], [30, hex('#38bdf8')], [38, hex('#fbbf24')], [46, hex('#f97316')], [55, hex('#ef4444')], [65, hex('#b91c1c')]];
+      function heatRGB(t) {
+        if (t <= HEAT_STOPS[0][0]) return HEAT_STOPS[0][1];
+        for (let i = 1; i < HEAT_STOPS.length; i++) {
+          if (t <= HEAT_STOPS[i][0]) {
+            const a = HEAT_STOPS[i - 1], b = HEAT_STOPS[i];
+            return mix(a[1], b[1], (t - a[0]) / (b[0] - a[0]));
+          }
+        }
+        return HEAT_STOPS[HEAT_STOPS.length - 1][1];
+      }
+
+      function isOnline() {
+        return simMode || (lastDataAt > 0 && Date.now() - lastDataAt < 8000);
+      }
+
+      // ---------------- geometría ----------------
+      const faces = [];
+      function roundRect(w, h, r, seg) {
+        seg = seg || 5;
+        const pts = [];
+        const cx = [w / 2 - r, -w / 2 + r, -w / 2 + r, w / 2 - r];
+        const cy = [h / 2 - r, h / 2 - r, -h / 2 + r, -h / 2 + r];
+        for (let c = 0; c < 4; c++) {
+          for (let i = 0; i <= seg; i++) {
+            const a = (c + i / seg) * Math.PI / 2;
+            pts.push([cx[c] + r * Math.cos(a), cy[c] + r * Math.sin(a)]);
+          }
+        }
+        return pts;
+      }
+      function circle(d, n, ox, oy) {
+        n = n || 24; ox = ox || 0; oy = oy || 0;
+        const pts = [];
+        for (let i = 0; i < n; i++) {
+          const a = i / n * Math.PI * 2;
+          pts.push([ox + d / 2 * Math.cos(a), oy + d / 2 * Math.sin(a)]);
+        }
+        return pts;
+      }
+      const at = (pts2, z) => pts2.map(p => [p[0], p[1], z]);
+      const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+      const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+      function norm(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+      function centroid(pts) {
+        let x = 0, y = 0, z = 0;
+        for (const p of pts) { x += p[0]; y += p[1]; z += p[2]; }
+        return [x / pts.length, y / pts.length, z / pts.length];
+      }
+
+      // La normal apunta hacia afuera del sólido (todas las piezas son convexas)
+      function addFace(pts, center, opts) {
+        const f = Object.assign({ holes: null, role: 'body', group: 'static', cull: true }, opts || {});
+        f.pts = pts;
+        if (!f.n) {
+          let n = norm(cross(sub(pts[1], pts[0]), sub(pts[pts.length - 1], pts[0])));
+          const d = sub(centroid(pts), center);
+          if (n[0] * d[0] + n[1] * d[1] + n[2] * d[2] < 0) n = [-n[0], -n[1], -n[2]];
+          f.n = n;
+        }
+        faces.push(f);
+        return f;
+      }
+
+      // Prisma / tronco entre dos contornos (p0 abajo en z0, p1 arriba en z1)
+      function frustum(p0, z0, p1, z1, opts, caps) {
+        caps = caps || {};
+        let cx = 0, cy = 0;
+        for (const p of p0) { cx += p[0]; cy += p[1]; }
+        cx /= p0.length; cy /= p0.length;
+        const center = [cx, cy, (z0 + z1) / 2];
+        const n = p0.length;
+        for (let i = 0; i < n; i++) {
+          const j = (i + 1) % n;
+          addFace([[p0[i][0], p0[i][1], z0], [p0[j][0], p0[j][1], z0], [p1[j][0], p1[j][1], z1], [p1[i][0], p1[i][1], z1]], center, opts);
+        }
+        const res = {};
+        if (caps.top !== false) res.top = addFace(at(p1, z1), center, Object.assign({}, opts, { n: [0, 0, 1] }, caps.topOpts || {}));
+        if (caps.bottom !== false) res.bottom = addFace(at(p0, z0), center, Object.assign({}, opts, { n: [0, 0, -1] }));
+        return res;
+      }
+
+      // Caja orientada: origen o, aristas u, v, w
+      function obox(o, u, v, w, opts) {
+        const P = (a, b, c) => [o[0] + u[0] * a + v[0] * b + w[0] * c, o[1] + u[1] * a + v[1] * b + w[1] * c, o[2] + u[2] * a + v[2] * b + w[2] * c];
+        const center = P(0.5, 0.5, 0.5);
+        const quads = [
+          [P(0, 0, 0), P(1, 0, 0), P(1, 1, 0), P(0, 1, 0)], [P(0, 0, 1), P(1, 0, 1), P(1, 1, 1), P(0, 1, 1)],
+          [P(0, 0, 0), P(1, 0, 0), P(1, 0, 1), P(0, 0, 1)], [P(0, 1, 0), P(1, 1, 0), P(1, 1, 1), P(0, 1, 1)],
+          [P(0, 0, 0), P(0, 1, 0), P(0, 1, 1), P(0, 0, 1)], [P(1, 0, 0), P(1, 1, 0), P(1, 1, 1), P(1, 0, 1)]
+        ];
+        for (const q of quads) addFace(q, center, opts);
+      }
+
+      // --- Base impresa (PCB adentro) con el disipador saliendo por atrás (+y)
+      const baseRR = roundRect(232, 150, 10);
+      frustum(baseRR, -34, baseRR, 0, { role: 'base' }, { bottom: false });
+      for (let i = 0; i < 7; i++) {
+        obox([-49.5 + i * 16, 75, -30], [3, 0, 0], [0, 18, 0], [0, 0, 26], { role: 'fin' });
+      }
+
+      // --- Lonchera (paredes semitransparentes para ver el aire por dentro)
+      const bodyTop = roundRect(212, 134, 16);
+      frustum(roundRect(200, 125, 14), 0, bodyTop, 110, { role: 'body', cull: false }, { top: false, bottom: false });
+      addFace(at(roundRect(194, 119, 12), 1.5), [0, 0, 0], { role: 'floor', n: [0, 0, 1], cull: false });
+
+      // Reborde y escalón del borde de la lonchera
+      const lipRR = roundRect(227, 142, 12);
+      frustum(lipRR, 110, lipRR, 114, { role: 'lip' }, { bottom: false, topOpts: { holes: [at(bodyTop, 114)] } });
+      const stepRR = roundRect(220, 131, 10);
+      frustum(stepRR, 114, stepRR, 124, { role: 'lip' }, { bottom: false, topOpts: { holes: [at(roundRect(210, 121, 8), 124)] } });
+
+      // Recipiente con comida adentro
+      frustum(roundRect(110, 75, 8), 1.5, roundRect(114, 79, 9), 46, { role: 'food' }, { bottom: false });
+
+      // --- Tapa superior: hueco Ø70/asiento Ø80, 6 ranuras y agujero del sensor
+      const lidRR = roundRect(227, 142, 12);
+      const lidHoles = [at(circle(80, 28), 130), at(circle(8, 10, -85, -40), 130)];
+      for (let k = 0; k < 6; k++) {
+        const x = 65 + k * 7;
+        lidHoles.push(at([[x - 1.5, -20], [x + 1.5, -20], [x + 1.5, 20], [x - 1.5, 20]], 130));
+      }
+      const lid = frustum(lidRR, 114, lidRR, 130, { role: 'lid', group: 'lid' }, { bottom: false, topOpts: { holes: lidHoles } });
+      // Adaptador naranja (secadora 1: punta Ø53)
+      lid.top.decals = [{ pts: at(circle(80, 28), 130.3), holes: [at(circle(53, 24), 130.3)], role: 'adapter' }];
+
+      // LM35 colgando por su agujero
+      frustum(circle(6, 8, -85, -40), 62, circle(6, 8, -85, -40), 130, { role: 'sensor', group: 'lid' }, { top: false });
+
+      // --- Secadora (aproximada): boquilla, cono, cuerpo, rejilla y mango
+      frustum(circle(53, 22), 130, circle(53, 22), 165, { role: 'nozzle', group: 'dryer' }, { top: false, bottom: false });
+      frustum(circle(53, 22), 165, circle(84, 22), 185, { role: 'dryer', group: 'dryer' }, { top: false, bottom: false });
+      const dryerBody = frustum(circle(84, 22), 185, circle(84, 22), 290, { role: 'dryer', group: 'dryer' }, { bottom: false });
+      dryerBody.top.role = 'dryerTop';
+      obox([30, -16, 205], [95, 0, -45], [0, 32, 0], [0, 0, 34], { role: 'dryer', group: 'dryer' });
+
+      // ---------------- colores ----------------
+      const COL = {
+        base: hex('#5b6472'), fin: hex('#a3aab5'), body: hex('#aab1bc'), lip: hex('#8d949f'),
+        food: hex('#f1f5f9'), lid: hex('#4274b4'), adapter: hex('#f59e0b'), nozzle: hex('#1f2937'),
+        dryer: hex('#3a4352'), dryerTop: hex('#1f2937'), sensor: hex('#0f172a'),
+        warn: hex('#ef4444'), orange: hex('#f97316'), grey: hex('#9ca3af')
+      };
+      let S = { online: false, heating: false, T: 24, tintK: 0, warn: false, t: 0 };
+
+      function roleColor(role) {
+        const heat = heatRGB(S.T);
+        switch (role) {
+          case 'body': return { c: mix(COL.body, heat, S.tintK), a: 0.4 };
+          case 'floor': return { c: S.online ? heat : COL.grey, a: 0.25 + 0.45 * S.tintK };
+          case 'food': return { c: mix(COL.food, heat, S.tintK * 0.55), a: 1 };
+          case 'lid': return { c: S.warn ? mix(COL.lid, COL.warn, 0.45 + 0.25 * Math.sin(S.t * 6)) : COL.lid, a: 1 };
+          case 'nozzle': return { c: S.heating ? mix(COL.nozzle, COL.orange, 0.3) : COL.nozzle, a: 1 };
+          default: return { c: COL[role] || COL.grey, a: 1 };
+        }
+      }
+
+      // ---------------- cámara ----------------
+      let yaw = -0.6, pitch = 0.5, lift = 0, liftTarget = 0;
+      let autoRotate = !reduceMotion, lastInteract = -1e9, spin = 0;
+      let cyw, syw, cp, sp, ZC, SC;
+      function setupCam() {
+        cyw = Math.cos(yaw); syw = Math.sin(yaw);
+        cp = Math.cos(pitch); sp = Math.sin(pitch);
+        SC = Math.min(W / 330, H / (370 + lift * 120));
+        ZC = 128 + lift * 55;
+      }
+      function project(x, y, z) {
+        const xr = x * cyw - y * syw, yr = x * syw + y * cyw, zc = z - ZC;
+        const up = zc * cp + yr * sp, depth = yr * cp - zc * sp;
+        const f = CAMD / (CAMD + depth);
+        return [W / 2 + xr * f * SC, H * 0.5 - up * f * SC, depth, f];
+      }
+
+      function pushFace(f, list, dz) {
+        const nx = f.n[0], ny = f.n[1], nz = f.n[2];
+        const nxr = nx * cyw - ny * syw, nyr = nx * syw + ny * cyw;
+        const nd = nyr * cp - nz * sp, nup = nz * cp + nyr * sp;
+        if (f.cull && nd >= 0) return;
+        const proj = f.pts.map(p => project(p[0], p[1], p[2] + dz));
+        let d = 0;
+        for (const q of proj) d += q[2];
+        d /= proj.length;
+        const facing = nd < 0 ? -nd : nd * 0.4;
+        const light = clamp(0.55 + 0.35 * facing + 0.25 * nup - 0.12 * nxr, 0.35, 1.12);
+        const shade = c => [Math.min(255, c[0] * light), Math.min(255, c[1] * light), Math.min(255, c[2] * light)];
+        const rc = roleColor(f.role);
+        const projAll = arr => arr.map(h => h.map(p => project(p[0], p[1], p[2] + dz)));
+        list.push({
+          kind: 'poly', depth: d, proj, role: f.role, dz,
+          holes: f.holes ? projAll(f.holes) : null,
+          col: shade(rc.c), alpha: rc.a, stroke: rc.a >= 1,
+          decals: f.decals ? f.decals.map(dc => ({ proj: dc.pts.map(p => project(p[0], p[1], p[2] + dz)), holes: dc.holes ? projAll(dc.holes) : null, col: shade(roleColor(dc.role).c) })) : null
+        });
+      }
+
+      // ---------------- partículas de aire ----------------
+      const parts = [];
+      let spawnAcc = 0;
+      function spawn(hot, pf) {
+        if (parts.length >= 280) return;
+        if (hot) {
+          const a = Math.random() * Math.PI * 2, r = Math.random() * 18, s = 20 + Math.random() * 50;
+          parts.push({
+            x: Math.cos(a) * r, y: Math.sin(a) * r, z: 122 + lift * LIFT,
+            vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: -(170 + Math.random() * 80) * (0.6 + 0.4 * pf),
+            age: 0, life: 3.2 + Math.random() * 1.6, temp: Math.max(actualTemp + 22, 58), up: false, out: false
+          });
+        } else {
+          // Convección suave cuando la secadora está apagada pero el interior sigue tibio
+          let x = (Math.random() - 0.5) * 180, y = (Math.random() - 0.5) * 110, z = 6;
+          if (Math.abs(x) < 57 && Math.abs(y) < 40) z = 48;
+          parts.push({ x, y, z, vx: 0, vy: 0, vz: 15 + Math.random() * 20, age: 0, life: 3 + Math.random() * 2, temp: actualTemp, up: true, out: false });
+        }
+      }
+
+      function stepParticles(dt) {
+        const lidClosed = lift < 0.08;
+        for (let i = parts.length - 1; i >= 0; i--) {
+          const p = parts[i];
+          p.age += dt;
+          if (p.age > p.life) { parts.splice(i, 1); continue; }
+          p.temp += (actualTemp - p.temp) * Math.min(1, dt / 1.4);
+          if (p.out) p.vz += 30 * dt;
+          else if (!p.up) p.vz -= 20 * dt;
+          else p.vz = Math.min(p.vz + 70 * dt, 95);
+          p.vx *= 1 - 0.6 * dt;
+          p.vy *= 1 - 0.6 * dt;
+          p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+          if (p.out) continue;
+
+          // Choca con la comida o el fondo y rebota hacia los lados
+          const inFood = Math.abs(p.x) < 57 && Math.abs(p.y) < 40;
+          if (p.vz < 0 && ((inFood && p.z < 47) || p.z < 5)) {
+            p.z = inFood ? 47 : 5;
+            p.vz = 25 + Math.random() * 30;
+            p.up = true;
+            const a = Math.atan2(p.y, p.x) + (Math.random() - 0.5) * 0.8, s = 90 + Math.random() * 90;
+            p.vx += Math.cos(a) * s; p.vy += Math.sin(a) * s;
+          } else if (inFood && p.z < 47) {
+            if (57 - Math.abs(p.x) < 40 - Math.abs(p.y)) p.x = Math.sign(p.x || 1) * 57;
+            else p.y = Math.sign(p.y || 1) * 40;
+          }
+          // Paredes
+          const k = Math.min(1, Math.max(0, p.z) / 110), hx = 97 + 6 * k, hy = 60 + 4 * k;
+          if (Math.abs(p.x) > hx) { p.x = Math.sign(p.x) * hx; p.vx *= -0.4; }
+          if (Math.abs(p.y) > hy) { p.y = Math.sign(p.y) * hy; p.vy *= -0.4; }
+          // Techo: sale por las ranuras de la tapa (x 63-102, y ±20) o recircula
+          if (lidClosed) {
+            if (p.z > 116) {
+              if (p.x > 60 && p.x < 106 && Math.abs(p.y) < 22) {
+                p.out = true; p.vz = Math.max(p.vz, 50); p.life = Math.min(p.life, p.age + 1.6);
+              } else {
+                p.z = 116; p.vz = -Math.abs(p.vz) * 0.2;
+                p.vx += (83 - p.x) * 2.5 * dt; p.vy += -p.y * 1.5 * dt;
+              }
+            }
+          } else if (p.z > 112) {
+            p.out = true; p.life = Math.min(p.life, p.age + 1.8);
+          }
+        }
+      }
+
+      // ---------------- dibujo ----------------
+      function tracePath(proj) {
+        ctx.moveTo(proj[0][0], proj[0][1]);
+        for (let i = 1; i < proj.length; i++) ctx.lineTo(proj[i][0], proj[i][1]);
+        ctx.closePath();
+      }
+      function fillPoly(proj, holes, col, alpha, stroke) {
+        ctx.beginPath();
+        tracePath(proj);
+        if (holes) for (const h of holes) tracePath(h);
+        ctx.fillStyle = rgba(col, alpha);
+        ctx.fill('evenodd');
+        if (stroke) { ctx.strokeStyle = rgba(col, alpha); ctx.lineWidth = 0.8; ctx.stroke(); }
+      }
+      function drawSpokes(dz) {
+        const c = project(0, 0, 290 + dz);
+        ctx.strokeStyle = 'rgba(156,163,175,0.85)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let k = 0; k < 3; k++) {
+          const a = spin + k * Math.PI * 2 / 3;
+          const e = project(Math.cos(a) * 34, Math.sin(a) * 34, 290 + dz);
+          ctx.moveTo(c[0], c[1]); ctx.lineTo(e[0], e[1]);
+        }
+        ctx.stroke();
+      }
+      function drawItem(it) {
+        if (it.kind === 'poly') {
+          fillPoly(it.proj, it.holes, it.col, it.alpha, it.stroke);
+          if (it.decals) for (const d of it.decals) fillPoly(d.proj, d.holes, d.col, 1, true);
+          if (it.role === 'dryerTop') drawSpokes(it.dz);
+        } else if (it.kind === 'pt') {
+          const p = it.p;
+          const fade = Math.min(1, p.age * 4) * Math.sqrt(Math.max(0, 1 - p.age / p.life));
+          let c = heatRGB(p.temp), r = Math.max(1.2, 4.2 * it.f * SC), a = 0.85 * fade;
+          if (p.out) { c = mix(c, [255, 255, 255], 0.6); r *= 1 + Math.min(p.age, 2) * 0.35; a *= 0.45; }
+          ctx.fillStyle = rgba(c, a);
+          ctx.beginPath(); ctx.arc(it.x, it.y, r, 0, Math.PI * 2); ctx.fill();
+        } else if (it.kind === 'glow') {
+          const g = ctx.createRadialGradient(it.x, it.y, 0, it.x, it.y, it.r);
+          g.addColorStop(0, 'rgba(251,146,60,0.55)');
+          g.addColorStop(1, 'rgba(251,146,60,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      function drawShadow() {
+        const c = project(0, 0, -34);
+        ctx.save();
+        ctx.translate(c[0], c[1]);
+        ctx.scale(1, 0.32 + 0.3 * sp);
+        const r = 165 * SC;
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        g.addColorStop(0, 'rgba(15,23,42,0.35)');
+        g.addColorStop(1, 'rgba(15,23,42,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      function drawSensorLabel(dz) {
+        const tip = project(-85, -40, 62 + dz);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(tip[0], tip[1], 2.5, 0, Math.PI * 2); ctx.fill();
+        const txt = 'LM35 · ' + actualTemp.toFixed(1) + ' °C';
+        ctx.font = '600 11px Inter, system-ui, sans-serif';
+        const w = ctx.measureText(txt).width + 14;
+        let x = tip[0] - w - 10, y = tip[1] + 6;
+        if (x < 4) x = tip[0] + 10;
+        y = clamp(y, 4, H - 24);
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(tip[0], tip[1]); ctx.lineTo(x < tip[0] ? x + w : x, y + 10); ctx.stroke();
+        ctx.fillStyle = 'rgba(15,23,42,0.72)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w, 20, 10); else ctx.rect(x, y, w, 20);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(txt, x + 7, y + 14);
+      }
+      function drawOffline() {
+        ctx.fillStyle = 'rgba(15,23,42,0.55)';
+        const w = Math.min(W - 24, 280), x = (W - w) / 2, y = H - 58;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w, 46, 12); else ctx.rect(x, y, w, 46);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.font = '700 12px Inter, system-ui, sans-serif';
+        ctx.fillText('Sin conexión con el ESP32', W / 2, y + 19);
+        ctx.font = '500 11px Inter, system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(219,234,254,0.9)';
+        ctx.fillText('Activa el Modo Piloto para ver la simulación', W / 2, y + 35);
+        ctx.textAlign = 'left';
+      }
+
+      function render() {
+        setupCam();
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        const dz = lift * LIFT, lidTopZ = 130 + dz;
+
+        drawShadow();
+        // Tres capas: (A) lonchera y lo de adentro, (B) tapa, (C) secadora y vapor de arriba
+        const A = [], B = [], C = [];
+        for (const f of faces) {
+          if (f.group === 'lid') pushFace(f, f.role === 'sensor' ? A : B, dz);
+          else if (f.group === 'dryer') pushFace(f, C, dz);
+          else pushFace(f, A, 0);
+        }
+        if (S.heating) {
+          const g = project(0, 0, 118 + dz);
+          A.push({ kind: 'glow', depth: g[2] - 1, x: g[0], y: g[1], r: 60 * g[3] * SC });
+        }
+        for (const p of parts) {
+          const q = project(p.x, p.y, p.z);
+          (p.z > lidTopZ ? C : A).push({ kind: 'pt', depth: q[2], x: q[0], y: q[1], f: q[3], p });
+        }
+        for (const L of [A, B, C]) {
+          L.sort((a, b) => b.depth - a.depth);
+          for (const it of L) drawItem(it);
+        }
+        if (S.online) drawSensorLabel(dz);
+        else drawOffline();
+      }
+
+      // ---------------- bucle ----------------
+      function step(dt, now) {
+        const online = isOnline();
+        const T = online ? actualTemp : 24;
+        S = {
+          online, heating: online && triacActive, T, t: now / 1000,
+          tintK: online ? clamp((T - 24) / 30, 0, 0.7) : 0,
+          warn: online && T >= LIMITE_TAPA
+        };
+        lift += (liftTarget - lift) * Math.min(1, dt * 4);
+        if (Math.abs(liftTarget - lift) < 0.002) lift = liftTarget;
+        if (autoRotate && now - lastInteract > 3500) yaw += dt * 0.25;
+        if (S.heating) spin += dt * 14;
+
+        const pf = { high: 1, med: 0.65, low: 0.35 }[powerLevel] || 1;
+        if (S.heating) spawnAcc += dt * 75 * pf;
+        else if (online) spawnAcc += dt * clamp((actualTemp - 27) / 20, 0, 1) * 7;
+        else spawnAcc = 0;
+        while (spawnAcc >= 1) { spawn(S.heating, pf); spawnAcc -= 1; }
+        stepParticles(dt);
+      }
+
+      function updateHud() {
+        const online = isOnline();
+        const m = document.getElementById('oven3dMarker');
+        if (m) {
+          m.style.left = (online ? clamp((actualTemp - 20) / 45, 0, 1) * 100 : 0) + '%';
+          m.style.opacity = online ? '1' : '0.4';
+        }
+        const pill = document.getElementById('pillLastData');
+        if (pill) {
+          let txt = 'Sin señal', color = '#dc2626';
+          if (simMode) { txt = 'Simulado'; color = '#2563eb'; }
+          else if (lastDataAt > 0) {
+            const s = Math.round((Date.now() - lastDataAt) / 1000);
+            if (s <= 3) { txt = 'En vivo'; color = '#16a34a'; }
+            else if (s < 60) { txt = 'hace ' + s + ' s'; color = '#d97706'; }
+          }
+          pill.textContent = txt;
+          pill.style.color = color;
+        }
+        const b = document.getElementById('alarmBanner'), t = document.getElementById('alarmText');
+        if (b && t) {
+          if (online && actualTemp >= LIMITE_TAPA) {
+            b.className = 'alarm-banner show';
+            t.textContent = 'Interior a ' + actualTemp.toFixed(1) + ' °C. La tapa de PLA se empieza a ablandar arriba de ~' + LIMITE_TAPA + ' °C: baja el objetivo o apaga la secadora.';
+          } else if (targetTemp > LIMITE_TAPA) {
+            b.className = 'alarm-banner show warn';
+            t.textContent = 'El objetivo (' + targetTemp.toFixed(1) + ' °C) pasa el límite de la tapa de PLA (~' + LIMITE_TAPA + ' °C). Bájalo o imprime la tapa en PETG.';
+          } else {
+            b.className = 'alarm-banner';
+          }
+        }
+      }
+
+      let last = performance.now(), hudAcc = 1;
+      function frame(now) {
+        const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+        last = now;
+        if (W > 2 && H > 2) {
+          step(dt, now);
+          render();
+        }
+        hudAcc += dt;
+        if (hudAcc > 0.5) { hudAcc = 0; updateHud(); }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+      setInterval(() => { if (document.hidden) updateHud(); }, 1000);
+
+      // ---------------- controles ----------------
+      let drag = null;
+      canvas.addEventListener('pointerdown', e => {
+        drag = { x: e.clientX, y: e.clientY, id: e.pointerId, type: e.pointerType };
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
+        lastInteract = performance.now();
+      });
+      canvas.addEventListener('pointermove', e => {
+        if (!drag || e.pointerId !== drag.id) return;
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        drag.x = e.clientX; drag.y = e.clientY;
+        yaw += dx * 0.012;
+        if (drag.type === 'mouse') pitch = clamp(pitch + dy * 0.008, 0.15, 1.1);
+        lastInteract = performance.now();
+      });
+      const endDrag = e => { if (drag && e.pointerId === drag.id) drag = null; };
+      canvas.addEventListener('pointerup', endDrag);
+      canvas.addEventListener('pointercancel', endDrag);
+
+      const lidBtn = document.getElementById('oven3dLidBtn');
+      const spinBtn = document.getElementById('oven3dSpinBtn');
+      const resetBtn = document.getElementById('oven3dResetBtn');
+      if (lidBtn) lidBtn.addEventListener('click', () => {
+        liftTarget = liftTarget ? 0 : 1;
+        lidBtn.textContent = liftTarget ? 'Cerrar tapa' : 'Abrir tapa';
+        lidBtn.classList.toggle('active', !!liftTarget);
+      });
+      if (spinBtn) {
+        spinBtn.classList.toggle('active', autoRotate);
+        spinBtn.addEventListener('click', () => {
+          autoRotate = !autoRotate;
+          spinBtn.classList.toggle('active', autoRotate);
+          lastInteract = -1e9;
+        });
+      }
+      if (resetBtn) resetBtn.addEventListener('click', () => {
+        yaw = -0.6; pitch = 0.5; lastInteract = performance.now();
+      });
+    })();
   </script>
 </body>
 </html>
