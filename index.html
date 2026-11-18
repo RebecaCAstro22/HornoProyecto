@@ -1,0 +1,3424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lonchera 4.0 — Control Térmico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-page: #ffffff;
+      --bg-surface: #f8fbff;
+      --bg-soft: #eff6ff;
+      --bg-soft-2: #dbeafe;
+      --border-soft: #e2ecf8;
+      --border-blue: #bfdbfe;
+
+      --blue-950: #0a192f;
+      --blue-900: #0f294a;
+      --blue-800: #1e3a8a;
+      --blue-700: #1d4ed8;
+      --blue-600: #2563eb;
+      --blue-500: #3b82f6;
+      --blue-400: #60a5fa;
+      --blue-300: #93c5fd;
+      --blue-200: #bfdbfe;
+      --blue-100: #dbeafe;
+      --blue-50: #eff6ff;
+
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-light: #ffffff;
+
+      --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-ui);
+    }
+
+    body {
+      background: var(--bg-page);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 28px 40px;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .dashboard-container {
+      width: 100%;
+      max-width: 1280px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* HEADER MINIMALISTA */
+    .desktop-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 4px 0 8px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--blue-50);
+      border: 1px solid var(--blue-200);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--blue-700);
+    }
+
+    .brand-name {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--blue-950);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-name span {
+      color: var(--blue-600);
+      font-weight: 500;
+    }
+
+    .top-status-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-soft);
+      border-radius: 999px;
+      padding: 7px 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .pill-metric {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .val-big {
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--blue-900);
+      font-size: 0.92rem;
+    }
+
+    .pill-divider {
+      width: 1px;
+      height: 18px;
+      background: var(--border-soft);
+    }
+
+    .pill-text-status {
+      color: var(--blue-700);
+      font-weight: 500;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mode-switch-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--blue-200);
+      background: var(--bg-page);
+      color: var(--blue-800);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .mode-switch-btn:hover {
+      background: var(--blue-50);
+      border-color: var(--blue-400);
+    }
+
+    .mode-switch-btn.pilot-active {
+      background: var(--blue-700);
+      border-color: var(--blue-700);
+      color: #ffffff;
+    }
+
+    .view-container {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .view-container.active {
+      display: flex;
+    }
+
+    /* TARJETA PRINCIPAL DE TEMPERATURA: AZUL TRANSLÚCIDA */
+    .hero-panel {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1.45fr 0.95fr;
+      gap: 28px;
+      padding: 28px 32px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.86) 0%, rgba(29, 78, 216, 0.82) 55%, rgba(15, 41, 74, 0.90) 100%);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      border: 1px solid rgba(191, 219, 254, 0.45);
+      box-shadow: 0 20px 50px rgba(37, 99, 235, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      overflow: hidden;
+    }
+
+    .hero-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 15%, rgba(147, 197, 253, 0.28), transparent 45%),
+                  radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.22), transparent 50%);
+      pointer-events: none;
+    }
+
+    .hero-left {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .hero-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .hero-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hero-label {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    .badge-suboptimal {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.26);
+      color: #ffffff;
+    }
+
+    .badge-suboptimal.stable {
+      background: rgba(219, 234, 254, 0.26);
+      border-color: rgba(191, 219, 254, 0.55);
+    }
+
+    .badge-suboptimal.heating {
+      background: rgba(96, 165, 250, 0.30);
+      border-color: rgba(147, 197, 253, 0.65);
+    }
+
+    .badge-suboptimal.cooling {
+      background: rgba(15, 23, 42, 0.28);
+      border-color: rgba(147, 197, 253, 0.3);
+    }
+
+    /* GAUGE CENTRAL LIMPIO */
+    .center-gauge-box {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      height: 230px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .main-arc-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .arc-bg-dashed {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.14);
+      stroke-width: 1.5;
+      stroke-dasharray: 4 6;
+    }
+
+    .arc-track-thick {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.16);
+      stroke-width: 14;
+      stroke-linecap: round;
+    }
+
+    .arc-range-highlight {
+      fill: none;
+      stroke: rgba(191, 219, 254, 0.35);
+      stroke-width: 14;
+      stroke-linecap: round;
+      opacity: 0;
+    }
+
+    .arc-fill-gradient {
+      fill: none;
+      stroke: url(#arcGradientFlow);
+      stroke-width: 14;
+      stroke-linecap: round;
+      stroke-dasharray: 580;
+      stroke-dashoffset: 580;
+      transition: stroke-dashoffset 0.5s ease;
+      filter: drop-shadow(0 0 10px rgba(191, 219, 254, 0.55));
+    }
+
+    .gauge-center-content {
+      position: absolute;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .gauge-temperature-big {
+      font-family: var(--font-display);
+      font-size: 3.4rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: #ffffff;
+    }
+
+    .gauge-temperature-big .unit {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: rgba(219, 234, 254, 0.85);
+      margin-left: 2px;
+    }
+
+    .gauge-caption {
+      font-size: 0.78rem;
+      color: rgba(219, 234, 254, 0.8);
+      font-weight: 500;
+    }
+
+    .range-pulse-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: #eff6ff;
+      margin-top: 2px;
+    }
+
+    .range-pulse-indicator.heating-pulse #rangePulseDot {
+      color: #93c5fd;
+      animation: pulseSoft 1.2s infinite;
+    }
+
+    .range-pulse-indicator.active-pulse #rangePulseDot {
+      color: #ffffff;
+    }
+
+    @keyframes pulseSoft {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    .hero-ref-strip {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .hero-ref-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      font-size: 0.76rem;
+      color: rgba(239, 246, 255, 0.85);
+    }
+
+    .hero-ref-chip strong {
+      font-family: var(--font-display);
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    /* COLUMNA DERECHA: SIMULACIÓN VISUAL DE LA LONCHERA TÉRMICA */
+    .hero-right {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.11);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 18px;
+      padding: 18px 20px;
+      backdrop-filter: blur(12px);
+    }
+
+    .lunchbox-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: rgba(239, 246, 255, 0.9);
+    }
+
+    .lunchbox-state-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      background: rgba(15, 23, 42, 0.35);
+      color: rgba(219, 234, 254, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      transition: all 0.3s ease;
+    }
+
+    .lunchbox-state-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(191, 219, 254, 0.45);
+      transition: all 0.3s ease;
+    }
+
+    .lunchbox-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 10px 8px;
+      position: relative;
+    }
+
+    /* CAJA DECORATIVA LONCHERA TÉRMICA */
+    .lunchbox-sim {
+      position: relative;
+      width: 176px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: transform 0.35s ease;
+    }
+
+    .lunchbox-waves {
+      height: 22px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 4px;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+
+    .lunchbox-waves span {
+      width: 3px;
+      height: 12px;
+      border-radius: 99px;
+      background: rgba(219, 234, 254, 0.9);
+    }
+
+    .lunchbox-sim.is-on .lunchbox-waves {
+      opacity: 1;
+    }
+
+    .lunchbox-sim.is-on .lunchbox-waves span:nth-child(1) {
+      animation: heatRise 1.3s infinite ease-in-out 0s;
+    }
+    .lunchbox-sim.is-on .lunchbox-waves span:nth-child(2) {
+      height: 17px;
+      animation: heatRise 1.3s infinite ease-in-out 0.25s;
+    }
+    .lunchbox-sim.is-on .lunchbox-waves span:nth-child(3) {
+      animation: heatRise 1.3s infinite ease-in-out 0.5s;
+    }
+
+    @keyframes heatRise {
+      0%, 100% { transform: translateY(2px); opacity: 0.35; }
+      50% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    .lunchbox-handle {
+      width: 64px;
+      height: 11px;
+      border: 3px solid rgba(219, 234, 254, 0.65);
+      border-bottom: none;
+      border-radius: 10px 10px 0 0;
+    }
+
+    .lunchbox-lid {
+      width: 168px;
+      height: 20px;
+      border-radius: 10px 10px 4px 4px;
+      background: rgba(255, 255, 255, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+    }
+
+    .lunchbox-clasp {
+      width: 14px;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.45);
+    }
+
+    .lunchbox-body {
+      width: 160px;
+      height: 82px;
+      border-radius: 6px 6px 14px 14px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(15, 41, 74, 0.42) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-top: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      position: relative;
+      transition: all 0.4s ease;
+    }
+
+    .lunchbox-sim.is-on .lunchbox-body {
+      background: linear-gradient(180deg, rgba(147, 197, 253, 0.36) 0%, rgba(37, 99, 235, 0.52) 100%);
+      border-color: rgba(191, 219, 254, 0.85);
+      box-shadow: 0 0 28px rgba(147, 197, 253, 0.45), inset 0 0 18px rgba(255, 255, 255, 0.22);
+    }
+
+    .lunchbox-vent {
+      display: flex;
+      gap: 6px;
+    }
+
+    .lunchbox-vent span {
+      width: 22px;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.28);
+      transition: background 0.3s ease;
+    }
+
+    .lunchbox-sim.is-on .lunchbox-vent span {
+      background: rgba(255, 255, 255, 0.85);
+    }
+
+    .lunchbox-led-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: rgba(219, 234, 254, 0.72);
+    }
+
+    .lunchbox-led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(148, 163, 184, 0.45);
+      transition: all 0.3s ease;
+    }
+
+    .lunchbox-sim.is-on .lunchbox-led {
+      background: #ffffff;
+      box-shadow: 0 0 10px #ffffff, 0 0 18px #93c5fd;
+    }
+
+    .lunchbox-sim.is-on .lunchbox-led-bar {
+      color: #ffffff;
+    }
+
+    .lunchbox-sim.is-on + .lunchbox-subtext {
+      color: #ffffff;
+    }
+
+    .lunchbox-subtext {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: rgba(219, 234, 254, 0.78);
+      text-align: center;
+    }
+
+    .hero-power-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .mini-stat-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+    }
+
+    .mini-stat-val {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .mini-stat-tag {
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+
+    .mini-stat-bar {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      overflow: hidden;
+    }
+
+    .mini-stat-fill {
+      width: 100%;
+      height: 100%;
+      border-radius: 999px;
+      background: #ffffff;
+      transition: width 0.3s ease;
+    }
+
+    .btn-view-full-report {
+      width: 100%;
+      margin-top: 4px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn-view-full-report:hover {
+      background: rgba(255, 255, 255, 0.24);
+    }
+
+    /* FRANJA DE MODOS (SOLO PALETA AZUL) */
+    .mode-control-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 12px 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-soft);
+      border-radius: 16px;
+    }
+
+    .mode-strip-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .mode-strip-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .mode-buttons-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-mode-select {
+      padding: 8px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border-soft);
+      background: #ffffff;
+      color: var(--blue-900);
+      font-size: 0.83rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-mode-select small {
+      font-weight: 400;
+      font-size: 0.75rem;
+      opacity: 0.75;
+    }
+
+    .btn-mode-select:hover {
+      border-color: var(--blue-300);
+      background: var(--blue-50);
+    }
+
+    .btn-mode-select.active.auto {
+      background: var(--blue-700);
+      border-color: var(--blue-700);
+      color: #ffffff;
+    }
+
+    .btn-mode-select.active.manual {
+      background: var(--blue-500);
+      border-color: var(--blue-500);
+      color: #ffffff;
+    }
+
+    .btn-mode-select.active.off {
+      background: var(--blue-950);
+      border-color: var(--blue-950);
+      color: #ffffff;
+    }
+
+    .mode-strip-right {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--blue-700);
+    }
+
+    /* PANEL MANUAL (AZULES, SIN ROJO NI VERDE) */
+    .manual-control-card {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      padding: 18px 22px;
+      border-radius: 16px;
+      background: var(--blue-50);
+      border: 1px solid var(--blue-200);
+    }
+
+    .manual-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .manual-card-title {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--blue-950);
+    }
+
+    .manual-status-indicator {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .manual-status-indicator strong {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      margin-left: 6px;
+    }
+
+    .manual-actions-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-manual-action {
+      flex: 1;
+      min-width: 190px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-manual-action.on {
+      background: var(--blue-700);
+      border: 1px solid var(--blue-700);
+      color: #ffffff;
+    }
+
+    .btn-manual-action.on:hover {
+      background: var(--blue-800);
+    }
+
+    .btn-manual-action.off {
+      background: #ffffff;
+      border: 1px solid var(--blue-200);
+      color: var(--blue-900);
+    }
+
+    .btn-manual-action.off:hover {
+      background: var(--blue-100);
+    }
+
+    /* FILA INFERIOR: 3 TARJETAS BLANCAS MINIMALISTAS */
+    .bottom-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .white-card {
+      background: #ffffff;
+      border: 1px solid var(--border-soft);
+      border-radius: 20px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+      box-shadow: 0 4px 20px rgba(15, 41, 74, 0.03);
+    }
+
+    .white-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .white-card-title {
+      font-family: var(--font-display);
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--blue-950);
+    }
+
+    .score-badge-status {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--blue-50);
+      color: var(--blue-700);
+    }
+
+    .score-comparison-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .target-quick-adjust-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .score-big-number {
+      font-family: var(--font-display);
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: var(--blue-950);
+      letter-spacing: -0.03em;
+    }
+
+    .score-sub-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .btn-step-circle {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--blue-200);
+      background: var(--blue-50);
+      color: var(--blue-800);
+      font-size: 1.15rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .btn-step-circle:hover {
+      background: var(--blue-700);
+      border-color: var(--blue-700);
+      color: #ffffff;
+    }
+
+    .interactive-temp-slider {
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--blue-100) 0%, var(--blue-500) 55%, var(--blue-900) 100%);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .interactive-temp-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid var(--blue-700);
+      box-shadow: 0 2px 8px rgba(29, 78, 216, 0.35);
+      cursor: pointer;
+    }
+
+    .gradient-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .quick-preset-btns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .btn-preset {
+      flex: 1;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border-soft);
+      background: var(--bg-surface);
+      color: var(--blue-900);
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .btn-preset:hover {
+      border-color: var(--blue-300);
+      background: var(--blue-50);
+    }
+
+    .btn-preset.active {
+      background: var(--blue-700);
+      border-color: var(--blue-700);
+      color: #ffffff;
+    }
+
+    .controls-stepper-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-soft);
+    }
+
+    .stepper-item {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stepper-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .stepper-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stepper-val-text {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--blue-950);
+    }
+
+    /* TARJETA 2: POTENCIA */
+    .immunity-percentage-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .immunity-big-perc {
+      font-family: var(--font-display);
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: var(--blue-700);
+      letter-spacing: -0.03em;
+    }
+
+    .power-level-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .power-level-card-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 11px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border-soft);
+      background: var(--bg-surface);
+      color: var(--blue-950);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .power-level-card-item:hover {
+      border-color: var(--blue-300);
+      background: var(--blue-50);
+    }
+
+    .power-level-card-item.selected {
+      background: var(--blue-700);
+      border-color: var(--blue-700);
+      color: #ffffff;
+    }
+
+    .power-name {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+
+    .power-spec {
+      font-size: 0.74rem;
+      opacity: 0.8;
+      font-weight: 500;
+    }
+
+    /* TARJETA 3: TIEMPOS */
+    .inflammation-stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-soft);
+    }
+
+    .timer-stat-box {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .timer-stat-box .title {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .timer-stat-box .val {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--blue-900);
+    }
+
+    .change-over-time-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--blue-50);
+      font-size: 0.8rem;
+      color: var(--blue-900);
+      font-weight: 600;
+    }
+
+    .change-badge-up {
+      font-family: var(--font-display);
+      color: var(--blue-700);
+      font-weight: 700;
+    }
+
+    .minimal-note {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    /* VISTA 2: HISTORIAL (ESTILO BLANCO + AZUL COHERENTE) */
+    .history-widescreen-panel {
+      background: #ffffff;
+      border: 1px solid var(--border-soft);
+      border-radius: 22px;
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 8px 30px rgba(15, 41, 74, 0.04);
+    }
+
+    .history-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .history-header-bar h2 {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--blue-950);
+    }
+
+    .history-header-bar p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .btn-back-dashboard,
+    .btn-export-csv {
+      padding: 8px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--blue-200);
+      background: var(--blue-50);
+      color: var(--blue-800);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-back-dashboard:hover,
+    .btn-export-csv:hover {
+      background: var(--blue-700);
+      border-color: var(--blue-700);
+      color: #ffffff;
+    }
+
+    .history-tabs-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .hist-tab-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-hist-subtab {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-soft);
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .btn-hist-subtab.active {
+      background: var(--blue-700);
+      border-color: var(--blue-700);
+      color: #ffffff;
+    }
+
+    .history-metrics-four {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .metric-glass-box {
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-soft);
+    }
+
+    .metric-glass-label {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .metric-glass-val {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--blue-900);
+    }
+
+    .theory-box {
+      padding: 16px 18px;
+      border-radius: 14px;
+      background: var(--blue-50);
+      border: 1px solid var(--blue-200);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .theory-box-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--blue-900);
+    }
+
+    .theory-formula-chip {
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid var(--blue-200);
+      font-size: 0.76rem;
+      color: var(--blue-800);
+    }
+
+    .theory-params-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .theory-param-item {
+      background: #ffffff;
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .theory-param-item strong {
+      font-family: var(--font-display);
+      font-size: 0.92rem;
+      color: var(--blue-800);
+    }
+
+    .history-chart-large-wrap,
+    .pulses-chart-wrap {
+      width: 100%;
+      height: 300px;
+      border-radius: 16px;
+      background: var(--blue-950);
+      padding: 10px;
+    }
+
+    .history-chart-large-wrap canvas,
+    .pulses-chart-wrap canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .saved-essays-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .essay-card-item {
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-soft);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .essay-card-item:hover {
+      border-color: var(--blue-400);
+      background: var(--blue-50);
+    }
+
+    .history-log-table {
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      background: var(--bg-surface);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-row-item {
+      font-size: 0.78rem;
+      color: var(--text-main);
+      display: flex;
+      gap: 10px;
+    }
+
+    .log-row-time {
+      color: var(--blue-600);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 980px) {
+      .hero-panel {
+        grid-template-columns: 1fr;
+      }
+      .bottom-cards-grid {
+        grid-template-columns: 1fr;
+      }
+      .history-metrics-four,
+      .theory-params-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .desktop-header {
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-container">
+
+    <!-- BARRA SUPERIOR MINIMALISTA -->
+    <header class="desktop-header">
+      <div class="brand-section">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+          </svg>
+        </div>
+        <div class="brand-name">
+          Lonchera <span>4.0</span>
+        </div>
+      </div>
+
+      <div class="top-status-pill">
+        <div class="pill-metric">
+          <span>Actual</span>
+          <span class="val-big" id="pillTempActual">--.-°C</span>
+        </div>
+        <div class="pill-divider"></div>
+        <div class="pill-metric">
+          <span>Objetivo</span>
+          <span class="val-big" id="pillTempObjetivo">40.0°C</span>
+        </div>
+        <div class="pill-divider"></div>
+        <div class="pill-text-status" id="pillStatusMsg">En espera</div>
+      </div>
+
+      <div class="header-actions">
+        <button class="mode-switch-btn" id="btnModeSim" onclick="toggleSimMode()" title="Alternar entre simulación local y conexión ESP32">
+          <span id="simIcon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <rect x="3" y="6" width="18" height="12" rx="4"/>
+              <circle cx="9" cy="12" r="1.5"/>
+              <circle cx="15" cy="12" r="1.5"/>
+            </svg>
+          </span>
+          <span id="simLabel">Modo Piloto</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ======================================================== -->
+    <!-- VISTA 1: DASHBOARD PRINCIPAL                             -->
+    <!-- ======================================================== -->
+    <main class="view-container active" id="viewMainDashboard">
+
+      <!-- TARJETA PRINCIPAL DE TEMPERATURA (AZUL TRANSLÚCIDA) -->
+      <section class="hero-panel">
+
+        <!-- IZQUIERDA: TEMPERATURA ACTUAL Y ARCO -->
+        <div class="hero-left">
+          <div class="hero-top-row">
+            <div class="hero-title-group">
+              <span class="hero-label">Temperatura interior</span>
+              <span class="badge-suboptimal" id="heroBadgeStatus">En espera</span>
+            </div>
+          </div>
+
+          <div class="center-gauge-box">
+            <svg class="main-arc-svg" viewBox="0 0 460 260">
+              <defs>
+                <linearGradient id="arcGradientFlow" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#bfdbfe" />
+                  <stop offset="55%" stop-color="#93c5fd" />
+                  <stop offset="100%" stop-color="#ffffff" />
+                </linearGradient>
+              </defs>
+              <path class="arc-bg-dashed" d="M 40 230 A 190 190 0 0 1 420 230" />
+              <path class="arc-track-thick" d="M 60 230 A 170 170 0 0 1 400 230" />
+              <path class="arc-range-highlight" id="arcTargetHighlight" d="M 60 230 A 170 170 0 0 1 400 230" />
+              <path class="arc-fill-gradient" id="arcFillDynamic" d="M 60 230 A 170 170 0 0 1 400 230" />
+            </svg>
+
+            <div class="gauge-center-content">
+              <div class="gauge-temperature-big">
+                <span id="centerTempVal">--.-</span><span class="unit">°C</span>
+              </div>
+              <div class="gauge-caption" id="centerTempSubtitle">Lectura del sensor</div>
+              <div class="range-pulse-indicator" id="rangePulseBadge">
+                <span id="rangePulseDot">●</span>
+                <span id="rangePulseText">Esperando datos</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-ref-strip">
+            <div class="hero-ref-chip">Mín <strong id="orbitRangeMin">38.0°C</strong></div>
+            <div class="hero-ref-chip">Objetivo <strong id="orbitSetpoint">40.0°C</strong></div>
+            <div class="hero-ref-chip">Máx <strong id="orbitRangeMax">42.0°C</strong></div>
+          </div>
+        </div>
+
+        <!-- DERECHA: SIMULACIÓN VISUAL DE LA LONCHERA TÉRMICA -->
+        <aside class="hero-right">
+          <div class="lunchbox-header">
+            <span>Lonchera térmica</span>
+            <span class="lunchbox-state-pill" id="lunchboxStatePill">
+              <span class="lunchbox-state-dot" id="lunchboxStateDot"></span>
+              <span id="lunchboxStateLabel">APAGADA</span>
+            </span>
+          </div>
+
+          <div class="lunchbox-stage">
+            <div class="lunchbox-sim" id="lunchboxSim" aria-label="Simulación visual de lonchera térmica">
+              <div class="lunchbox-waves" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div class="lunchbox-handle"></div>
+              <div class="lunchbox-lid">
+                <span class="lunchbox-clasp"></span>
+                <span class="lunchbox-clasp"></span>
+              </div>
+              <div class="lunchbox-body">
+                <div class="lunchbox-vent">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="lunchbox-led-bar">
+                  <span class="lunchbox-led"></span>
+                  <span id="lunchboxLedText">REPOSO</span>
+                </div>
+              </div>
+            </div>
+            <div class="lunchbox-subtext" id="lunchboxSubtext">Secadora apagada</div>
+          </div>
+
+          <div class="hero-power-footer">
+            <div class="mini-stat-top">
+              <span>Potencia</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="mini-stat-val" id="statPowerTopVal">100%</span>
+                <span class="mini-stat-tag" id="statPowerTag">ALTO</span>
+              </div>
+            </div>
+            <div class="mini-stat-bar">
+              <div class="mini-stat-fill" id="statPowerBarFill"></div>
+            </div>
+            <button class="btn-view-full-report" onclick="navigateToHistory()">
+              <span>Ver historial</span>
+              <span>→</span>
+            </button>
+          </div>
+        </aside>
+
+      </section>
+
+      <!-- SELECTOR DE MODO (BOTONES CLAROS Y EN PALETA AZUL) -->
+      <div class="mode-control-strip">
+        <div class="mode-strip-left">
+          <span class="mode-strip-label">Modo</span>
+          <div class="mode-buttons-group">
+            <button class="btn-mode-select active auto" id="btnModeAuto" onclick="cambiarModoOperacion('auto')">
+              <span>Automático</span> <small>(regula solo)</small>
+            </button>
+            <button class="btn-mode-select manual" id="btnModeManual" onclick="cambiarModoOperacion('manual')">
+              <span>Manual</span> <small>(prueba directa)</small>
+            </button>
+            <button class="btn-mode-select off" id="btnModeOff" onclick="cambiarModoOperacion('off')">
+              <span>Apagado</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mode-strip-right" id="modeStripInfo">
+          <span id="badgeModoActivo">● Automático activo</span>
+        </div>
+      </div>
+
+      <!-- CONTROL MANUAL (SOLO VISIBLE EN MODO MANUAL) -->
+      <div class="manual-control-card" id="manualControlCard" style="display: none;">
+        <div class="manual-card-header">
+          <div class="manual-card-title">Control manual de secadora</div>
+          <div class="manual-status-indicator">
+            Estado: <strong id="manualTriacText" style="background: #dbeafe; color: #1e3a8a;">APAGADO</strong>
+          </div>
+        </div>
+        <div class="manual-actions-row">
+          <button class="btn-manual-action on" id="btnManualOn" onclick="enviarAccionManual(true)">
+            Encender secadora
+          </button>
+          <button class="btn-manual-action off" id="btnManualOff" onclick="enviarAccionManual(false)">
+            Apagar secadora
+          </button>
+        </div>
+      </div>
+
+      <!-- FILA INFERIOR: 3 TARJETAS BLANCAS MINIMALISTAS -->
+      <section class="bottom-cards-grid">
+
+        <!-- TARJETA 1: TEMPERATURA OBJETIVO -->
+        <div class="white-card">
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div class="white-card-header">
+              <div class="white-card-title">Temperatura objetivo</div>
+              <div class="score-badge-status" id="rangeBadgeText">Ajustando</div>
+            </div>
+
+            <div class="score-comparison-row">
+              <div class="target-quick-adjust-group">
+                <button class="btn-step-circle" onclick="changeTarget(-1)" title="Bajar 1°C">−</button>
+                <div class="score-big-number"><span id="targetDisplayBig">40.0</span>°C</div>
+                <button class="btn-step-circle" onclick="changeTarget(1)" title="Subir 1°C">+</button>
+              </div>
+              <div class="score-sub-label">Actual: <span id="actualDisplaySub">--.-</span>°C</div>
+            </div>
+
+            <div>
+              <input type="range" class="interactive-temp-slider" id="targetRangeSlider" min="20" max="65" step="0.5" value="40" oninput="onTargetSliderInput(this.value)" onchange="onTargetSliderChange(this.value)">
+              <div class="gradient-labels">
+                <span>20°C</span>
+                <span>Objetivo: <strong id="sliderTargetEcho" style="color:var(--blue-900);">40.0°C</strong></span>
+                <span>65°C</span>
+              </div>
+            </div>
+
+            <div class="quick-preset-btns">
+              <button type="button" class="btn-preset" id="btnPreset30" onclick="setTargetExact(30)">30°</button>
+              <button type="button" class="btn-preset" id="btnPreset35" onclick="setTargetExact(35)">35°</button>
+              <button type="button" class="btn-preset active" id="btnPreset40" onclick="setTargetExact(40)">40°</button>
+              <button type="button" class="btn-preset" id="btnPreset45" onclick="setTargetExact(45)">45°</button>
+              <button type="button" class="btn-preset" id="btnPreset50" onclick="setTargetExact(50)">50°</button>
+            </div>
+          </div>
+
+          <div class="controls-stepper-grid">
+            <div class="stepper-item">
+              <span class="stepper-label">Objetivo</span>
+              <div class="stepper-actions">
+                <button class="btn-step-circle" onclick="changeTarget(-1)">−</button>
+                <div class="stepper-val-text"><span id="stepperTargetVal">40.0</span>°C</div>
+                <button class="btn-step-circle" onclick="changeTarget(1)">+</button>
+              </div>
+            </div>
+
+            <div class="stepper-item">
+              <span class="stepper-label">Margen (±)</span>
+              <div class="stepper-actions">
+                <button class="btn-step-circle" onclick="changeTolerance(-0.5)">−</button>
+                <div class="stepper-val-text">±<span id="stepperTolVal">2.0</span>°C</div>
+                <button class="btn-step-circle" onclick="changeTolerance(0.5)">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TARJETA 2: POTENCIA -->
+        <div class="white-card">
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div class="white-card-header">
+              <div class="white-card-title">Potencia de secadora</div>
+            </div>
+
+            <div class="immunity-percentage-row">
+              <div class="immunity-big-perc" id="powerPercBig">100%</div>
+              <div style="font-size:0.8rem; color:var(--text-muted); font-weight:500;">Nivel activo</div>
+            </div>
+          </div>
+
+          <div class="power-level-list">
+            <div class="power-level-card-item selected" id="powerItemHigh" onclick="selectPowerLevel('high')">
+              <div class="power-name">
+                <span>Alto</span>
+              </div>
+              <div class="power-spec">100% continuo</div>
+            </div>
+
+            <div class="power-level-card-item" id="powerItemMed" onclick="selectPowerLevel('med')">
+              <div class="power-name">
+                <span>Medio</span>
+              </div>
+              <div class="power-spec">66% ráfagas</div>
+            </div>
+
+            <div class="power-level-card-item" id="powerItemLow" onclick="selectPowerLevel('low')">
+              <div class="power-name">
+                <span>Bajo</span>
+              </div>
+              <div class="power-spec">33% suave</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TARJETA 3: TIEMPOS -->
+        <div class="white-card">
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div class="white-card-header">
+              <div class="white-card-title">Tiempos de operación</div>
+            </div>
+
+            <div class="inflammation-stats-row">
+              <div class="timer-stat-box">
+                <div class="title">Calentando</div>
+                <div class="val" id="timeHeatVal">0m 00s</div>
+              </div>
+              <div class="timer-stat-box">
+                <div class="title">Enfriando</div>
+                <div class="val" id="timeCoolVal">0m 00s</div>
+              </div>
+              <div class="timer-stat-box">
+                <div class="title">Estable</div>
+                <div class="val" id="timeStableVal">0m 00s</div>
+              </div>
+            </div>
+
+            <div class="minimal-note" id="diagLunchboxText">
+              Supervisión térmica en tiempo real.
+            </div>
+          </div>
+
+          <div class="change-over-time-row">
+            <span>Tasa térmica</span>
+            <span class="change-badge-up" id="rateBadgeText">0.0 °C/min</span>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- ======================================================== -->
+    <!-- VISTA 2: HISTORIAL                                       -->
+    <!-- ======================================================== -->
+    <main class="view-container" id="viewHistoryPage">
+      <section class="history-widescreen-panel">
+
+        <div class="history-header-bar">
+          <div>
+            <h2>Historial térmico</h2>
+            <p>Registro de temperatura, pulsos y ensayos guardados.</p>
+          </div>
+          <button class="btn-back-dashboard" onclick="navigateToDashboard()">
+            ← Volver al dashboard
+          </button>
+        </div>
+
+        <div class="history-tabs-row">
+          <div class="hist-tab-group">
+            <button class="btn-hist-subtab active" id="btnHistTabCurves" onclick="switchHistSubtab('curves')">
+              Curva real vs teórica
+            </button>
+            <button class="btn-hist-subtab" id="btnHistTabPulses" onclick="switchHistSubtab('pulses')">
+              Pulsos de potencia
+            </button>
+            <button class="btn-hist-subtab" id="btnHistTabEssays" onclick="switchHistSubtab('essays')">
+              Ensayos (<span id="countEnsayos">0</span>)
+            </button>
+          </div>
+          <button class="btn-export-csv" onclick="exportarHistorialCSV()">
+            Exportar CSV
+          </button>
+        </div>
+
+        <div class="history-metrics-four">
+          <div class="metric-glass-box">
+            <div class="metric-glass-label">Máxima</div>
+            <div class="metric-glass-val" id="histMaxTemp">--.-°C</div>
+          </div>
+          <div class="metric-glass-box">
+            <div class="metric-glass-label">Mínima</div>
+            <div class="metric-glass-val" id="histMinTemp">--.-°C</div>
+          </div>
+          <div class="metric-glass-box">
+            <div class="metric-glass-label">Promedio</div>
+            <div class="metric-glass-val" id="histAvgTemp">--.-°C</div>
+          </div>
+          <div class="metric-glass-box">
+            <div class="metric-glass-label">Ciclos TRIAC</div>
+            <div class="metric-glass-val" id="histTriacCycles">0</div>
+          </div>
+        </div>
+
+        <div class="theory-box" id="theoryBoxWrap">
+          <div class="theory-box-header">
+            <span>Modelo térmico</span>
+            <div class="theory-formula-chip">
+              T(t) = Tamb + (Tobj − Tamb)·(1 − e<sup>−t/τ</sup>)
+            </div>
+          </div>
+          <div class="theory-params-grid">
+            <div class="theory-param-item">
+              <span>Constante τ</span>
+              <strong id="theoryTauVal">62.5 s</strong>
+            </div>
+            <div class="theory-param-item">
+              <span>Potencia nominal</span>
+              <strong>850 W</strong>
+            </div>
+            <div class="theory-param-item">
+              <span>Duty teórico</span>
+              <strong id="theoryDutyVal">41.8%</strong>
+            </div>
+            <div class="theory-param-item">
+              <span>Pulsos</span>
+              <strong id="theoryPulsosVal">0 pulsos</strong>
+            </div>
+          </div>
+        </div>
+
+        <div id="sectionHistCurves" style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.76rem; color: var(--text-muted);">
+            <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+              <span><strong style="color: var(--blue-600);">Azul sólido:</strong> Real</span>
+              <span><strong style="color: var(--blue-400);">Azul punteado:</strong> Teórica</span>
+              <span><strong style="color: var(--blue-900);">Referencia:</strong> Objetivo (<span id="histSetpointLegend">40.0°C</span>)</span>
+            </div>
+            <span id="histPuntosTotal">0 muestras</span>
+          </div>
+          <div class="history-chart-large-wrap">
+            <canvas id="largeHistoryChart"></canvas>
+          </div>
+        </div>
+
+        <div id="sectionHistPulses" style="display: none; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.76rem; color: var(--text-muted);">
+            <span>Modulación de potencia</span>
+            <span id="pulsesStatSummary">0 W promedio</span>
+          </div>
+          <div class="pulses-chart-wrap" style="height: 280px;">
+            <canvas id="pulsesChart"></canvas>
+          </div>
+        </div>
+
+        <div id="sectionHistEssays" style="display: none; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.85rem; font-weight: 700; color: var(--blue-950);">Ensayos guardados</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Clic para cargar en gráfica</span>
+          </div>
+          <div class="saved-essays-grid" id="savedEssaysGrid">
+            <div style="font-size: 0.8rem; color: var(--text-muted); padding: 10px;">Sin ensayos guardados aún.</div>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--blue-950); margin-bottom: 8px;">
+            Bitácora de eventos
+          </div>
+          <div class="history-log-table" id="historyLogContainer">
+            <div class="log-row-item">
+              <span class="log-row-time">[00:00:00]</span>
+              <span class="log-row-msg">Sistema iniciado</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+  </div>
+
+  <script>
+    // ESTADO DEL SISTEMA
+    let simMode = false;
+    let actualTemp = 24.0;
+    let targetTemp = 40.0;
+    let toleranceVal = 2.0;
+    let powerLevel = 'high'; // 'low', 'med', 'high'
+    let triacActive = false;
+    let currentModo = 'auto'; // 'auto', 'manual', 'off'
+    let manualState = false;  // true = ON, false = OFF en modo manual
+    let faseESP = '';         // 'NORMAL', 'RAFAGA' o 'ESPERA' (modo automatico del ESP32)
+
+    // TIEMPOS (en segundos)
+    let secondsHeat = 0;
+    let secondsCool = 0;
+    let secondsStable = 0;
+    let triacCycles = 0;
+    let triacPrev = false;
+
+    // HISTORIAL Y ENLACE ACADÉMICO / TEÓRICO
+    const MAX_POINTS = 80;
+    let tempHistory = [];
+    let powerPulsesHistory = []; // Almacena el tren de pulsos del TRIAC
+    let savedEssays = [];        // Ensayos guardados automáticamente por setpoint
+    let picoMax = null;
+    let picoMin = null;
+    let lastTempForRate = 24.0;
+    let histSubtab = 'curves';
+    let stepStartTime = Date.now();
+    let initialTempOfStep = 24.0;
+    let pulsesCountInStep = 0;
+
+    // CANVAS ELEMENTS
+    const radarCanvas = document.getElementById('radarCanvas');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const largeCanvas = document.getElementById('largeHistoryChart');
+    const pulsesCanvas = document.getElementById('pulsesChart');
+
+    // NAVEGACIÓN DE SUB-PESTAÑAS EN EL HISTORIAL (CURVAS / PULSOS / ENSAYOS)
+    function switchHistSubtab(sub) {
+      histSubtab = sub;
+      const bCurves = document.getElementById('btnHistTabCurves');
+      const bPulses = document.getElementById('btnHistTabPulses');
+      const bEssays = document.getElementById('btnHistTabEssays');
+
+      const secCurves = document.getElementById('sectionHistCurves');
+      const secPulses = document.getElementById('sectionHistPulses');
+      const secEssays = document.getElementById('sectionHistEssays');
+
+      bCurves.className = 'btn-hist-subtab' + (sub === 'curves' ? ' active' : '');
+      bPulses.className = 'btn-hist-subtab' + (sub === 'pulses' ? ' active' : '');
+      bEssays.className = 'btn-hist-subtab' + (sub === 'essays' ? ' active' : '');
+
+      secCurves.style.display = (sub === 'curves') ? 'flex' : 'none';
+      secPulses.style.display = (sub === 'pulses') ? 'flex' : 'none';
+      secEssays.style.display = (sub === 'essays') ? 'flex' : 'none';
+
+      if (sub === 'curves') {
+        setTimeout(resizeLargeCanvas, 40);
+      } else if (sub === 'pulses') {
+        setTimeout(resizePulsesCanvas, 40);
+      } else if (sub === 'essays') {
+        renderSavedEssaysUI();
+      }
+    }
+
+    // GESTIÓN DE ENSAYOS GUARDADOS AUTOMÁTICAMENTE
+    function guardarEnsayoActual(setpointPrevio) {
+      if (tempHistory.length < 5) return;
+      const now = new Date();
+      const horaStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+      const duracionSec = Math.round((Date.now() - stepStartTime) / 1000);
+
+      const nuevoEnsayo = {
+        id: Date.now(),
+        numero: savedEssays.length + 1,
+        hora: horaStr,
+        setpoint: setpointPrevio,
+        tempInicial: initialTempOfStep.toFixed(1),
+        tempFinal: actualTemp.toFixed(1),
+        duracionSec: duracionSec,
+        pulsosTotales: pulsesCountInStep,
+        datosTemp: [...tempHistory],
+        datosPower: [...powerPulsesHistory]
+      };
+
+      savedEssays.unshift(nuevoEnsayo);
+      if (savedEssays.length > 25) savedEssays.pop();
+      document.getElementById('countEnsayos').textContent = savedEssays.length;
+      addLogEntry(`Ensayo #${nuevoEnsayo.numero} GUARDADO al cambiar setpoint a ${setpointPrevio.toFixed(1)}°C`);
+      renderSavedEssaysUI();
+    }
+
+    function renderSavedEssaysUI() {
+      const grid = document.getElementById('savedEssaysGrid');
+      if (savedEssays.length === 0) {
+        grid.innerHTML = '<div style="font-size: 0.8rem; color: #64748b; padding: 10px;">No hay ensayos guardados aún. Cada vez que cambies la temperatura objetivo con los botones se guardará un ensayo aquí con su gráfica.</div>';
+        return;
+      }
+      grid.innerHTML = '';
+      savedEssays.forEach((e) => {
+        const item = document.createElement('div');
+        item.className = 'essay-card-item';
+        item.onclick = () => cargarEnsayo(e.id);
+        item.innerHTML = `
+          <div class="essay-top">
+            <span class="essay-target">${e.setpoint.toFixed(1)}°C <span style="font-size:0.75rem; color:#38bdf8;">(Ensayo #${e.numero})</span></span>
+            <span class="essay-time-tag">${e.hora}</span>
+          </div>
+          <div class="essay-meta-row">
+            <span>Rango: ${e.tempInicial}°C ➔ ${e.tempFinal}°C</span>
+            <span>${Math.floor(e.duracionSec/60)}m ${e.duracionSec%60}s</span>
+          </div>
+          <div class="essay-meta-row" style="color:#2563eb;">
+            <span>${e.pulsosTotales} pulsos de TRIAC</span>
+            <span style="color:#1d4ed8; font-weight:700;">Ver Gráfica ▸</span>
+          </div>
+        `;
+        grid.appendChild(item);
+      });
+    }
+
+    function cargarEnsayo(id) {
+      const e = savedEssays.find(x => x.id === id);
+      if (!e) return;
+      tempHistory = [...e.datosTemp];
+      powerPulsesHistory = [...e.datosPower];
+      targetTemp = e.setpoint;
+      switchHistSubtab('curves');
+      updateUI();
+      addLogEntry(`Cargando curva y datos del Ensayo #${e.numero}`);
+    }
+
+    // EXPORTACIÓN A CSV PARA EL PROFESOR / LABORATORIO
+    function exportarHistorialCSV() {
+      let csv = 'Muestra,Tiempo_s,Temp_Real_C,Temp_Teorica_C,Setpoint_C,TRIAC_Estado,Potencia_W\n';
+      const TAU = 62.5;
+      const T_AMB = 22.0;
+
+      for (let i = 0; i < tempHistory.length; i++) {
+        const tSec = i;
+        const real = tempHistory[i].toFixed(2);
+        const teorica = (T_AMB + (targetTemp - T_AMB) * (1.0 - Math.exp(-tSec / TAU))).toFixed(2);
+        const pItem = powerPulsesHistory[i] || { active: false, power: 0 };
+        const triac = pItem.active ? 'ENCENDIDO' : 'APAGADO';
+        const watts = pItem.power || (pItem.active ? 850 : 0);
+        csv += `${i + 1},${tSec},${real},${teorica},${targetTemp.toFixed(1)},${triac},${watts}\n`;
+      }
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Horno_Termico_Ensayo_${targetTemp.toFixed(0)}C.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      addLogEntry('Archivo CSV exportado exitosamente para análisis en Excel/MATLAB');
+    }
+
+    // CONTROL DE MODO DE OPERACIÓN (AUTOMÁTICO VS MANUAL DE PRUEBA)
+    function cambiarModoOperacion(modo) {
+      currentModo = modo;
+      const bAuto = document.getElementById('btnModeAuto');
+      const bManual = document.getElementById('btnModeManual');
+      const bOff = document.getElementById('btnModeOff');
+      const cardManual = document.getElementById('manualControlCard');
+      const badgeInfo = document.getElementById('badgeModoActivo');
+
+      bAuto.className = 'btn-mode-select' + (modo === 'auto' ? ' active auto' : '');
+      bManual.className = 'btn-mode-select' + (modo === 'manual' ? ' active manual' : '');
+      bOff.className = 'btn-mode-select' + (modo === 'off' ? ' active off' : '');
+
+      if (modo === 'manual') {
+        cardManual.style.display = 'flex';
+        badgeInfo.innerHTML = '<span style="color:#2563eb;">● Manual activo</span>';
+        addLogEntry('Modo de operación cambiado a: MANUAL (Prueba directa)');
+        enviarModoESP32('manual_off');
+        manualState = false;
+        actualizarBotonManualUI(false);
+      } else if (modo === 'auto') {
+        cardManual.style.display = 'none';
+        badgeInfo.innerHTML = '<span style="color:#1d4ed8;">● Automático activo</span>';
+        addLogEntry('Modo de operación cambiado a: AUTOMÁTICO (Autorregulación)');
+        enviarModoESP32('auto');
+      } else {
+        cardManual.style.display = 'none';
+        badgeInfo.innerHTML = '<span style="color:#0f294a;">● Sistema apagado</span>';
+        addLogEntry('Modo de operación cambiado a: APAGADO');
+        enviarModoESP32('off');
+        triacActive = false;
+        manualState = false;
+      }
+    }
+
+    function enviarAccionManual(encender) {
+      manualState = encender;
+      actualizarBotonManualUI(encender);
+      if (encender) {
+        enviarModoESP32('manual_on');
+        addLogEntry('Prueba manual: Secadora ENCENDIDA (TRIAC ON)');
+      } else {
+        enviarModoESP32('manual_off');
+        addLogEntry('Prueba manual: Secadora APAGADA (TRIAC OFF)');
+      }
+    }
+
+    function actualizarBotonManualUI(encendido) {
+      const txt = document.getElementById('manualTriacText');
+      if (encendido) {
+        txt.textContent = 'ENCENDIDO';
+        txt.style.background = '#1d4ed8';
+        txt.style.color = '#ffffff';
+        txt.style.boxShadow = '0 0 12px rgba(37, 99, 235, 0.35)';
+      } else {
+        txt.textContent = 'APAGADO';
+        txt.style.background = '#dbeafe';
+        txt.style.color = '#1e3a8a';
+        txt.style.boxShadow = 'none';
+      }
+    }
+
+    // NAVEGACIÓN ENTRE PÁGINAS (DASHBOARD vs HISTORIAL)
+    function navigateToHistory() {
+      document.getElementById('viewMainDashboard').classList.remove('active');
+      document.getElementById('viewHistoryPage').classList.add('active');
+      setTimeout(resizeLargeCanvas, 60);
+    }
+
+    function navigateToDashboard() {
+      document.getElementById('viewHistoryPage').classList.remove('active');
+      document.getElementById('viewMainDashboard').classList.add('active');
+      setTimeout(() => { resizeRadar(); resizePreview(); }, 60);
+    }
+
+    // ICONOS SVG DEL BOTÓN DE MODO
+    const ICON_SIM = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="4"/><path d="M8 10v4M6 12h4"/><circle cx="16" cy="12" r="1"/></svg>';
+    const ICON_ESP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/></svg>';
+
+    // TOGGLE MODO PILOTO (SIMULACIÓN MANUAL)
+    function toggleSimMode() {
+      simMode = !simMode;
+      const btn = document.getElementById('btnModeSim');
+      const label = document.getElementById('simLabel');
+      const icon = document.getElementById('simIcon');
+      const pillMsg = document.getElementById('pillStatusMsg');
+
+      if (simMode) {
+        btn.classList.add('pilot-active');
+        label.textContent = 'Simulación activa';
+        icon.innerHTML = ICON_SIM;
+        pillMsg.innerHTML = 'Simulación local';
+        addLogEntry('Modo Simulación ACTIVADO');
+        updateLoop();
+      } else {
+        btn.classList.remove('pilot-active');
+        label.textContent = 'Modo Piloto';
+        icon.innerHTML = ICON_ESP;
+        addLogEntry('Modo Simulación DETENIDO (Esperando ESP32)');
+        setDisconnectedState();
+      }
+    }
+
+    // SIMULACIÓN VISUAL DE LA LONCHERA TÉRMICA (ENCENDIDA VS APAGADA)
+    function updateLunchboxSim(isOn, isConnected) {
+      const box = document.getElementById('lunchboxSim');
+      const pill = document.getElementById('lunchboxStatePill');
+      const dot = document.getElementById('lunchboxStateDot');
+      const label = document.getElementById('lunchboxStateLabel');
+      const ledText = document.getElementById('lunchboxLedText');
+      const subtext = document.getElementById('lunchboxSubtext');
+      if (!box) return;
+
+      if (!isConnected) {
+        box.classList.remove('is-on');
+        if (label) label.textContent = 'APAGADA';
+        if (ledText) ledText.textContent = 'SIN SEÑAL';
+        if (subtext) subtext.textContent = 'En espera de conexión';
+        if (pill) pill.style.background = 'rgba(15, 23, 42, 0.35)';
+        if (dot) {
+          dot.style.background = 'rgba(191, 219, 254, 0.45)';
+          dot.style.boxShadow = 'none';
+        }
+        return;
+      }
+
+      if (isOn) {
+        box.classList.add('is-on');
+        if (label) label.textContent = 'ENCENDIDA';
+        if (ledText) ledText.textContent = 'ACTIVA';
+        if (subtext) subtext.textContent = 'Calentando interior';
+        if (pill) pill.style.background = 'rgba(255, 255, 255, 0.24)';
+        if (dot) {
+          dot.style.background = '#ffffff';
+          dot.style.boxShadow = '0 0 8px #ffffff';
+        }
+      } else {
+        box.classList.remove('is-on');
+        if (label) label.textContent = 'APAGADA';
+        if (ledText) ledText.textContent = 'REPOSO';
+        if (subtext) subtext.textContent = 'Secadora apagada';
+        if (pill) pill.style.background = 'rgba(15, 23, 42, 0.35)';
+        if (dot) {
+          dot.style.background = 'rgba(191, 219, 254, 0.45)';
+          dot.style.boxShadow = 'none';
+        }
+      }
+    }
+
+    // ESTADO DESCONECTADO (Sin simulación y sin ESP32 detectado)
+    function setDisconnectedState() {
+      document.getElementById('pillTempActual').textContent = '--.-°C';
+      document.getElementById('centerTempVal').textContent = '--.-';
+      document.getElementById('actualDisplaySub').textContent = '--.-';
+      document.getElementById('pillStatusMsg').textContent = 'Sin conexión ESP32';
+
+      const pulseBadge = document.getElementById('rangePulseBadge');
+      pulseBadge.className = 'range-pulse-indicator';
+      pulseBadge.innerHTML = '<span style="color:#bfdbfe;">●</span> <span>Esperando ESP32</span>';
+
+      const heroBadge = document.getElementById('heroBadgeStatus');
+      heroBadge.className = 'badge-suboptimal';
+      heroBadge.textContent = 'En espera';
+
+      const rangeBadge = document.getElementById('rangeBadgeText');
+      rangeBadge.textContent = 'En espera';
+      rangeBadge.style.background = '#eff6ff';
+      rangeBadge.style.color = '#64748b';
+
+      document.getElementById('arcFillDynamic').style.strokeDashoffset = 580;
+      const pinDesc = document.getElementById('gradientSliderPin');
+      if (pinDesc) pinDesc.style.left = '0%';
+      updateLunchboxSim(false, false);
+    }
+
+    let ultimoAjusteTiempo = 0;
+    let timerDebounceEnsayo = null;
+
+    // AJUSTES DE OBJETIVO Y TOLERANCIA
+    let sliderBeingDragged = false;
+
+    function onTargetSliderInput(val) {
+      sliderBeingDragged = true;
+      targetTemp = Math.min(62.0, Math.max(20.0, parseFloat(val)));
+      ultimoAjusteTiempo = Date.now();
+      const echo = document.getElementById('sliderTargetEcho');
+      if (echo) echo.textContent = targetTemp.toFixed(1) + '°C';
+      updateUI();
+    }
+
+    function onTargetSliderChange(val) {
+      sliderBeingDragged = false;
+      targetTemp = Math.min(62.0, Math.max(20.0, parseFloat(val)));
+      ultimoAjusteTiempo = Date.now();
+      updateUI();
+      syncWithESP32();
+      if (timerDebounceEnsayo) clearTimeout(timerDebounceEnsayo);
+      timerDebounceEnsayo = setTimeout(() => {
+        guardarEnsayoActual(targetTemp);
+        initialTempOfStep = actualTemp;
+        stepStartTime = Date.now();
+        pulsesCountInStep = 0;
+      }, 2500);
+    }
+
+    function setTargetExact(val) {
+      const nuevo = Math.min(62.0, Math.max(20.0, val));
+      const previo = targetTemp;
+      targetTemp = nuevo;
+      ultimoAjusteTiempo = Date.now();
+      updateUI();
+      syncWithESP32();
+
+      if (timerDebounceEnsayo) clearTimeout(timerDebounceEnsayo);
+      timerDebounceEnsayo = setTimeout(() => {
+        guardarEnsayoActual(previo);
+        initialTempOfStep = actualTemp;
+        stepStartTime = Date.now();
+        pulsesCountInStep = 0;
+      }, 2500);
+    }
+
+    function changeTarget(delta) {
+      const nuevo = Math.min(62.0, Math.max(20.0, targetTemp + delta));
+      if (nuevo !== targetTemp) {
+        const previo = targetTemp;
+        targetTemp = nuevo;
+        ultimoAjusteTiempo = Date.now();
+        updateUI();
+        syncWithESP32();
+
+        // Guardar ensayo solo cuando el usuario termine de hacer clics (2.5 segundos después)
+        if (timerDebounceEnsayo) clearTimeout(timerDebounceEnsayo);
+        timerDebounceEnsayo = setTimeout(() => {
+          guardarEnsayoActual(previo);
+          initialTempOfStep = actualTemp;
+          stepStartTime = Date.now();
+          pulsesCountInStep = 0;
+        }, 2500);
+      }
+    }
+
+    function changeTolerance(delta) {
+      toleranceVal = Math.min(5.0, Math.max(0.5, toleranceVal + delta));
+      ultimoAjusteTiempo = Date.now();
+      updateUI();
+      syncWithESP32();
+    }
+
+    // REGULADOR DE SECADORA: ALTO, MEDIO, BAJO
+    function selectPowerLevel(lvl) {
+      powerLevel = lvl;
+      document.getElementById('powerItemHigh').className = 'power-level-card-item' + (lvl === 'high' ? ' selected' : '');
+      document.getElementById('powerItemMed').className = 'power-level-card-item' + (lvl === 'med' ? ' selected' : '');
+      document.getElementById('powerItemLow').className = 'power-level-card-item' + (lvl === 'low' ? ' selected' : '');
+
+      const topVal = document.getElementById('statPowerTopVal');
+      const topTag = document.getElementById('statPowerTag');
+      const percBig = document.getElementById('powerPercBig');
+      const barFill = document.getElementById('statPowerBarFill');
+
+      if (lvl === 'high') {
+        topVal.textContent = '100%';
+        topTag.textContent = 'ALTO';
+        topTag.style.background = 'rgba(255, 255, 255, 0.28)';
+        percBig.textContent = '100%';
+        barFill.style.width = '100%';
+        addLogEntry('Regulador secadora establecido en ALTO (100% continuo)');
+      } else if (lvl === 'med') {
+        topVal.textContent = '66%';
+        topTag.textContent = 'MEDIO';
+        topTag.style.background = 'rgba(191, 219, 254, 0.25)';
+        percBig.textContent = '66%';
+        barFill.style.width = '66%';
+        addLogEntry('Regulador secadora establecido en MEDIO (66% pulsos)');
+      } else {
+        topVal.textContent = '33%';
+        topTag.textContent = 'BAJO';
+        topTag.style.background = 'rgba(15, 23, 42, 0.28)';
+        percBig.textContent = '33%';
+        barFill.style.width = '33%';
+        addLogEntry('Regulador secadora establecido en BAJO (33% mantenimiento)');
+      }
+
+      syncWithESP32();
+    }
+
+    // DETECCIÓN DE RUTA DE CONEXIÓN AL ESP32
+    // Si la web se abre desde el ESP32 usa '', si se abre como archivo local file:/// usa http://192.168.4.1
+    const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:') ? '' : 'http://192.168.4.1';
+
+    async function syncWithESP32() {
+      if (simMode) return;
+      try {
+        await fetch(`${API_BASE}/set?t=${targetTemp.toFixed(1)}&tol=${toleranceVal.toFixed(1)}&pot=${powerLevel}`);
+      } catch (err) {}
+    }
+
+    async function enviarModoESP32(modoStr) {
+      if (simMode) return;
+      try {
+        await fetch(`${API_BASE}/modo?m=${modoStr}`);
+      } catch (err) {}
+    }
+
+    // SIMULACIÓN FÍSICA PARA MODO PILOTO EN COMPUTADORA
+    let simStep = 0;
+    function simulateThermalPhysics() {
+      simStep++;
+      const minR = targetTemp - toleranceVal;
+      let heatFactor = 0.55;
+      let dutyOn = true;
+
+      if (powerLevel === 'low') {
+        heatFactor = 0.22;
+        dutyOn = (simStep % 3 === 0);
+      } else if (powerLevel === 'med') {
+        heatFactor = 0.38;
+        dutyOn = (simStep % 3 !== 0);
+      }
+
+      if (currentModo === 'off') {
+        triacActive = false;
+      } else if (currentModo === 'manual') {
+        triacActive = manualState;
+      } else {
+        // AUTOMÁTICO: Regula solo
+        if (actualTemp < minR) {
+          triacActive = dutyOn;
+        } else if (actualTemp >= targetTemp) {
+          triacActive = false;
+        }
+      }
+
+      const coolingDissipation = (actualTemp - 22.0) * 0.024;
+      if (triacActive) {
+        actualTemp += heatFactor + (Math.random() * 0.06 - 0.03);
+      } else {
+        actualTemp -= coolingDissipation + (Math.random() * 0.02 - 0.01);
+      }
+
+      return {
+        valido: true,
+        temperatura: actualTemp,
+        objetivo: targetTemp,
+        tolerancia: toleranceVal,
+        potencia: powerLevel,
+        calefaccion: triacActive
+      };
+    }
+
+    // BUCLE DE ACTUALIZACIÓN (SIN SOLAPAMIENTO DE PETICIONES)
+    let isUpdating = false;
+    let consecutiveErrors = 0;
+
+    async function updateLoop() {
+      if (isUpdating) return;
+      isUpdating = true;
+      try {
+        await updateLoopInner();
+      } catch (e) {
+        console.error('Error actualizando la UI:', e);
+      } finally {
+        isUpdating = false;
+      }
+    }
+
+    async function updateLoopInner() {
+      let data = null;
+
+      if (simMode) {
+        data = simulateThermalPhysics();
+      } else {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2600);
+          const res = await fetch(API_BASE + '/estado', { signal: controller.signal });
+          clearTimeout(timeoutId);
+          data = await res.json();
+        } catch (e) {
+          data = null;
+        }
+      }
+
+      if (!data) {
+        if (!simMode) {
+          consecutiveErrors++;
+          if (consecutiveErrors < 3) {
+            // Mantiene los datos en pantalla y muestra aviso de reconexión sutil
+            const pText = document.getElementById('rangePulseText');
+            if (pText) pText.innerHTML = `<span style="color:#2563eb;">Reintentando conexión con ESP32 (${consecutiveErrors}/3)...</span>`;
+          } else {
+            setDisconnectedState();
+          }
+        }
+        isUpdating = false;
+        return;
+      }
+      consecutiveErrors = 0;
+
+      if (data.temperatura !== null && data.temperatura !== undefined) {
+        actualTemp = data.temperatura;
+      }
+      if (data.calefaccion !== undefined) {
+        triacActive = data.calefaccion;
+      }
+      faseESP = (!simMode && data.fase) ? data.fase : '';
+
+      if (!data.valido) {
+        const pillMsg = document.getElementById('pillStatusMsg');
+        if (pillMsg) pillMsg.innerHTML = '<span style="color:#2563eb;">Lectura analógica baja en GPIO 34. Verificando sensor...</span>';
+      }
+
+      if (true) {
+
+        if (!simMode) {
+          // Solo sincronizar el objetivo si el usuario no ha tocado los botones en los últimos 3.5 segundos
+          if (Date.now() - ultimoAjusteTiempo > 3500) {
+            if (data.objetivo !== undefined) targetTemp = data.objetivo;
+            if (data.tolerancia !== undefined) toleranceVal = data.tolerancia;
+          }
+          if (data.modo) {
+            if (data.modo === 'MANUAL' && currentModo !== 'manual') {
+              cambiarModoOperacion('manual');
+            } else if (data.modo === 'AUTOMATICO' && currentModo !== 'auto') {
+              cambiarModoOperacion('auto');
+            } else if (data.modo === 'APAGADO' && currentModo !== 'off') {
+              cambiarModoOperacion('off');
+            }
+          }
+          if (currentModo === 'manual') {
+            actualizarBotonManualUI(data.calefaccion);
+          }
+        }
+
+        // Historial
+        tempHistory.push(actualTemp);
+        if (tempHistory.length > MAX_POINTS) tempHistory.shift();
+
+        if (picoMax === null || actualTemp > picoMax) picoMax = actualTemp;
+        if (picoMin === null || actualTemp < picoMin) picoMin = actualTemp;
+
+        computeTimers(triacActive);
+        updateUI();
+        drawRadarChart();
+        drawPreviewChart();
+        if (document.getElementById('viewHistoryPage').classList.contains('active')) {
+          drawLargeHistoryChart();
+        }
+      }
+      isUpdating = false;
+    }
+
+    // COMPUTAR TIEMPOS Y PULSOS DE POTENCIA
+    function computeTimers(isHeating) {
+      const minR = targetTemp - toleranceVal;
+      const maxR = targetTemp + toleranceVal;
+      const inRange = (actualTemp >= minR && actualTemp <= maxR);
+
+      if (isHeating) secondsHeat++;
+      else secondsCool++;
+
+      if (inRange) secondsStable++;
+
+      // Registrar pulso de potencia en Watts
+      const watts = isHeating ? (powerLevel === 'high' ? 850 : (powerLevel === 'med' ? 560 : 280)) : 0;
+      powerPulsesHistory.push({ active: isHeating, power: watts });
+      if (powerPulsesHistory.length > MAX_POINTS) powerPulsesHistory.shift();
+
+      if (isHeating && !triacPrev) {
+        triacCycles++;
+        pulsesCountInStep++;
+        const pEl = document.getElementById('theoryPulsosVal');
+        if (pEl) pEl.textContent = `${triacCycles} pulsos`;
+        addLogEntry(`TRIAC disparado con cruce por cero (Pulso #${triacCycles})`);
+      } else if (!isHeating && triacPrev) {
+        addLogEntry(`TRIAC apagado - Iniciando enfriamiento`);
+      }
+      triacPrev = isHeating;
+
+      document.getElementById('timeHeatVal').textContent = formatSeconds(secondsHeat);
+      document.getElementById('timeCoolVal').textContent = formatSeconds(secondsCool);
+      document.getElementById('timeStableVal').textContent = formatSeconds(secondsStable);
+      document.getElementById('histTriacCycles').textContent = triacCycles;
+    }
+
+    function formatSeconds(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+    }
+
+    // ACTUALIZAR ELEMENTOS VISUALES DEL DASHBOARD
+    function updateUI() {
+      const minR = targetTemp - toleranceVal;
+      const maxR = targetTemp + toleranceVal;
+
+      // Header y textos
+      document.getElementById('pillTempActual').textContent = actualTemp.toFixed(1) + '°C';
+      document.getElementById('pillTempObjetivo').textContent = targetTemp.toFixed(1) + '°C';
+      document.getElementById('centerTempVal').textContent = actualTemp.toFixed(1);
+
+      document.getElementById('targetDisplayBig').textContent = targetTemp.toFixed(1);
+      document.getElementById('actualDisplaySub').textContent = actualTemp.toFixed(1);
+      document.getElementById('stepperTargetVal').textContent = targetTemp.toFixed(1);
+      document.getElementById('stepperTolVal').textContent = toleranceVal.toFixed(1);
+
+      const sl = document.getElementById('targetRangeSlider');
+      if (sl && !sliderBeingDragged) sl.value = targetTemp.toFixed(1);
+      const echo = document.getElementById('sliderTargetEcho');
+      if (echo) echo.textContent = targetTemp.toFixed(1) + '°C';
+
+      // Resaltar preset activo
+      [30, 35, 40, 45, 50].forEach(deg => {
+        const btn = document.getElementById(`btnPreset${deg}`);
+        if (btn) btn.classList.toggle('active', Math.abs(targetTemp - deg) < 0.25);
+      });
+
+      document.getElementById('orbitRangeMin').textContent = minR.toFixed(1) + '°C';
+      document.getElementById('orbitRangeMax').textContent = maxR.toFixed(1) + '°C';
+      document.getElementById('orbitSetpoint').textContent = targetTemp.toFixed(1) + '°C';
+
+      // 1. Arco SVG Principal
+      const TEMP_MIN = 20.0;
+      const TEMP_MAX = 65.0;
+      const TOTAL_DASH = 580;
+
+      const toRatio = (t) => Math.max(0, Math.min(1, (t - TEMP_MIN) / (TEMP_MAX - TEMP_MIN)));
+      const curRatio = toRatio(actualTemp);
+      const offset = TOTAL_DASH * (1 - curRatio);
+      document.getElementById('arcFillDynamic').style.strokeDashoffset = offset;
+
+      // 2. Animación Central de Mantenimiento en Rango
+      const pulseBadge = document.getElementById('rangePulseBadge');
+      const pulseText = document.getElementById('rangePulseText');
+      const heroBadge = document.getElementById('heroBadgeStatus');
+      const rangeBadge = document.getElementById('rangeBadgeText');
+      const pillMsg = document.getElementById('pillStatusMsg');
+
+      if (actualTemp >= minR && actualTemp <= maxR) {
+        // EN RANGO: ESTABILIDAD ÓPTIMA
+        pulseBadge.className = 'range-pulse-indicator active-pulse';
+        pulseText.textContent = (faseESP === 'RAFAGA')
+          ? `Manteniendo en ráfaga (±${toleranceVal.toFixed(1)}°C)`
+          : `En rango (±${toleranceVal.toFixed(1)}°C)`;
+        heroBadge.className = 'badge-suboptimal stable';
+        heroBadge.textContent = 'Estable';
+        rangeBadge.textContent = 'Estable';
+        rangeBadge.style.background = '#dbeafe';
+        rangeBadge.style.color = '#1d4ed8';
+        pillMsg.textContent = (faseESP === 'RAFAGA') ? 'Manteniendo' : 'Estable';
+      } else if (actualTemp < minR) {
+        // POR DEBAJO DEL OBJETIVO: CALENTANDO
+        pulseBadge.className = 'range-pulse-indicator heating-pulse';
+        pulseText.textContent = triacActive
+          ? `Calentando (${powerLevel.toUpperCase()})`
+          : `Subiendo hacia ${targetTemp.toFixed(1)}°C`;
+        heroBadge.className = 'badge-suboptimal heating';
+        heroBadge.textContent = 'Calentando';
+        rangeBadge.textContent = 'Calentando';
+        rangeBadge.style.background = '#1d4ed8';
+        rangeBadge.style.color = '#ffffff';
+        pillMsg.textContent = triacActive ? `Calentando (${powerLevel.toUpperCase()})` : 'Calentando';
+      } else {
+        // POR ENCIMA DEL OBJETIVO: ENFRIANDO NATURALMENTE
+        pulseBadge.className = 'range-pulse-indicator';
+        pulseText.textContent = `Enfriando hacia el rango`;
+        heroBadge.className = 'badge-suboptimal cooling';
+        heroBadge.textContent = 'Enfriando';
+        rangeBadge.textContent = 'Enfriando';
+        rangeBadge.style.background = '#eff6ff';
+        rangeBadge.style.color = '#1e3a8a';
+        pillMsg.textContent = 'Enfriando';
+      }
+
+      updateLunchboxSim(triacActive, true);
+
+      // 3. Pin deslizante en la barra horizontal con degradado
+      const sliderPin = document.getElementById('gradientSliderPin');
+      if (sliderPin) sliderPin.style.left = `${curRatio * 100}%`;
+
+      // 4. Estadísticas del Historial
+      if (picoMax !== null) document.getElementById('histMaxTemp').textContent = picoMax.toFixed(1) + '°C';
+      if (picoMin !== null) document.getElementById('histMinTemp').textContent = picoMin.toFixed(1) + '°C';
+      if (tempHistory.length > 0) {
+        const sum = tempHistory.reduce((a, b) => a + b, 0);
+        document.getElementById('histAvgTemp').textContent = (sum / tempHistory.length).toFixed(1) + '°C';
+      }
+
+      // 5. Cálculos Teóricos para el Profesor
+      const dutyTeorico = Math.max(0, Math.min(100, ((targetTemp - 22.0) / (65.0 - 22.0)) * 100));
+      const elDuty = document.getElementById('theoryDutyVal');
+      if (elDuty) elDuty.textContent = `${dutyTeorico.toFixed(1)}%`;
+      const elPuntos = document.getElementById('histPuntosTotal');
+      if (elPuntos) elPuntos.textContent = `${tempHistory.length} muestras`;
+      const elLeg = document.getElementById('histSetpointLegend');
+      if (elLeg) elLeg.textContent = `${targetTemp.toFixed(1)}°C`;
+    }
+
+    // DIBUJO DEL RADAR / PENTÁGONO TÉRMICO (EXACTO AL DE LA IMAGEN)
+    function resizeRadar() {
+      if (!radarCanvas || !radarCanvas.parentElement) return;
+      radarCanvas.width = radarCanvas.parentElement.clientWidth || 240;
+      radarCanvas.height = radarCanvas.parentElement.clientHeight || 180;
+      drawRadarChart();
+    }
+
+    function drawRadarChart() {
+      if (!radarCanvas) return;
+      const ctx = radarCanvas.getContext('2d');
+      const w = radarCanvas.width;
+      const h = radarCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const centerX = w / 2;
+      const centerY = h / 2 + 5;
+      const radius = Math.min(centerX, centerY) - 26;
+
+      const labels = ['Calor', 'Inercia', 'Flujo', 'Estabilidad', 'Aislamiento'];
+      const numSides = 5;
+      const angleStep = (Math.PI * 2) / numSides;
+
+      // Dibujar anillos concéntricos
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1;
+      for (let r = 0.25; r <= 1.0; r += 0.25) {
+        ctx.beginPath();
+        for (let i = 0; i < numSides; i++) {
+          const angle = i * angleStep - Math.PI / 2;
+          const x = centerX + Math.cos(angle) * (radius * r);
+          const y = centerY + Math.sin(angle) * (radius * r);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+
+      // Ejes y Etiquetas
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      for (let i = 0; i < numSides; i++) {
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        const labelX = centerX + Math.cos(angle) * (radius + 14);
+        const labelY = centerY + Math.sin(angle) * (radius + 14) + 3;
+        ctx.fillText(labels[i], labelX, labelY);
+      }
+
+      // Polígono de datos en vivo
+      const calorScore = triacActive ? 0.9 : 0.3;
+      const inerciaScore = 0.85; // Alta inercia metálica
+      const flujoScore = (powerLevel === 'high' ? 0.95 : (powerLevel === 'med' ? 0.65 : 0.4));
+      const minR = targetTemp - toleranceVal;
+      const maxR = targetTemp + toleranceVal;
+      const estabScore = (actualTemp >= minR && actualTemp <= maxR) ? 0.9 : 0.45;
+      const aislamScore = 0.7;
+
+      const scores = [calorScore, inerciaScore, flujoScore, estabScore, aislamScore];
+
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+
+      for (let i = 0; i < numSides; i++) {
+        const angle = i * angleStep - Math.PI / 2;
+        const dist = radius * scores[i];
+        const x = centerX + Math.cos(angle) * dist;
+        const y = centerY + Math.sin(angle) * dist;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // ========================================================
+    // HOVER TOOLTIP Y EVENTOS DE INTERACCIÓN EN CANVAS
+    // ========================================================
+    let hoverIndexLarge = null;
+    let hoverIndexPulses = null;
+
+    largeCanvas.addEventListener('mousemove', (e) => {
+      const rect = largeCanvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const padLeft = 68;
+      const padRight = 88;
+      const gw = largeCanvas.width - padLeft - padRight;
+      if (mouseX >= padLeft && mouseX <= largeCanvas.width - padRight && tempHistory.length > 1) {
+        const stepX = gw / (MAX_POINTS - 1);
+        const offset = MAX_POINTS - pts.length;
+        const idx = Math.round((mouseX - padLeft) / stepX) - offset;
+        if (idx >= 0 && idx < tempHistory.length) {
+          hoverIndexLarge = idx;
+          drawLargeHistoryChart();
+          return;
+        }
+      }
+      if (hoverIndexLarge !== null) {
+        hoverIndexLarge = null;
+        drawLargeHistoryChart();
+      }
+    });
+
+    largeCanvas.addEventListener('mouseleave', () => {
+      if (hoverIndexLarge !== null) {
+        hoverIndexLarge = null;
+        drawLargeHistoryChart();
+      }
+    });
+
+    pulsesCanvas.addEventListener('mousemove', (e) => {
+      const rect = pulsesCanvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const padLeft = 72;
+      const padRight = 50;
+      const gw = pulsesCanvas.width - padLeft - padRight;
+      if (mouseX >= padLeft && mouseX <= pulsesCanvas.width - padRight && powerPulsesHistory.length > 1) {
+        const stepX = gw / (MAX_POINTS - 1);
+        const offset = MAX_POINTS - pulses.length;
+        const idx = Math.round((mouseX - padLeft) / stepX) - offset;
+        if (idx >= 0 && idx < powerPulsesHistory.length) {
+          hoverIndexPulses = idx;
+          drawPulsesChart();
+          return;
+        }
+      }
+      if (hoverIndexPulses !== null) {
+        hoverIndexPulses = null;
+        drawPulsesChart();
+      }
+    });
+
+    pulsesCanvas.addEventListener('mouseleave', () => {
+      if (hoverIndexPulses !== null) {
+        hoverIndexPulses = null;
+        drawPulsesChart();
+      }
+    });
+
+    // ========================================================
+    // DIBUJO DEL MINI GRÁFICO PREVIEW (HERO CARD)
+    // Con cotas numéricas, setpoint y lectura actual destacada
+    // ========================================================
+    function resizePreview() {
+      if (!previewCanvas || !previewCanvas.parentElement) return;
+      previewCanvas.width = previewCanvas.parentElement.clientWidth || 220;
+      previewCanvas.height = previewCanvas.parentElement.clientHeight || 80;
+      drawPreviewChart();
+    }
+
+    function drawPreviewChart() {
+      if (!previewCanvas) return;
+      const ctx = previewCanvas.getContext('2d');
+      const w = previewCanvas.width;
+      const h = previewCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const padL = 36;
+      const padR = 48;
+      const padT = 8;
+      const padB = 16;
+      const gh = h - padT - padB;
+      const gw = w - padL - padR;
+
+      const pts = tempHistory.length > 0 ? tempHistory : [actualTemp, actualTemp];
+      const minT = Math.min(...pts, targetTemp - 3);
+      const maxT = Math.max(...pts, targetTemp + 3);
+      const range = (maxT - minT) || 1;
+      const toY = (v) => padT + gh * (1 - (v - minT) / range);
+      const stepX = gw / (MAX_POINTS - 1);
+      const offset = MAX_POINTS - pts.length;
+
+      // Líneas guía y números mín/máx
+      ctx.fillStyle = '#64748b';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${maxT.toFixed(0)}°`, padL - 4, padT + 2);
+      ctx.fillText(`${minT.toFixed(0)}°`, padL - 4, padT + gh);
+
+      // Línea punteada Setpoint
+      const yObj = toY(targetTemp);
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(padL, yObj);
+      ctx.lineTo(padL + gw, yObj);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Curva histórica
+      ctx.beginPath();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.2;
+      ctx.lineJoin = 'round';
+
+      for (let i = 0; i < pts.length; i++) {
+        const x = padL + (i + offset) * stepX;
+        const y = toY(pts[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Punto actual con número
+      const xLast = padL + (pts.length - 1 + offset) * stepX;
+      const yLast = toY(actualTemp);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(xLast, yLast, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${actualTemp.toFixed(1)}°C`, xLast + 6, yLast);
+      return;
+    }
+
+    // ========================================================
+    // DIBUJO DEL GRÁFICO GRANDE DE HISTORIAL (TEÓRICO VS REAL)
+    // Con Ejes Numéricos, Cuadrícula, Recta de Números y Datos
+    // ========================================================
+    function resizeLargeCanvas() {
+      if (!largeCanvas.parentElement) return;
+      largeCanvas.width = largeCanvas.parentElement.clientWidth;
+      largeCanvas.height = largeCanvas.parentElement.clientHeight;
+      drawLargeHistoryChart();
+    }
+
+    function drawLargeHistoryChart() {
+      const ctx = largeCanvas.getContext('2d');
+      const w = largeCanvas.width;
+      const h = largeCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const pts = tempHistory.length > 0 ? tempHistory : [actualTemp];
+
+      // MÁRGENES PROFESIONALES PARA EJES Y NÚMEROS
+      const padLeft = 68;
+      const padRight = 92;
+      const padTop = 32;
+      const padBottom = 44;
+      const gw = w - padLeft - padRight;
+      const gh = h - padTop - padBottom;
+
+      // RANGO DINÁMICO GRADUADO
+      const observedMin = Math.min(...pts, targetTemp - toleranceVal - 3, 20.0);
+      const observedMax = Math.max(...pts, targetTemp + toleranceVal + 3, 45.0);
+      let minT = Math.max(15, Math.floor((observedMin - 1) / 5) * 5);
+      let maxT = Math.min(70, Math.ceil((observedMax + 1) / 5) * 5);
+      if (maxT - minT < 20) maxT = minT + 20;
+
+      const toY = (v) => padTop + gh * (1 - (v - minT) / (maxT - minT));
+      const stepX = gw / (MAX_POINTS - 1);
+      const offset = MAX_POINTS - pts.length;
+      const toX = (i) => padLeft + (i + offset) * stepX;
+
+      // ----------------------------------------------------
+      // 1. CUADRÍCULA HORIZONTAL Y ESCALA NUMÉRICA DEL EJE Y
+      // ----------------------------------------------------
+      ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      for (let tVal = minT; tVal <= maxT; tVal += 5) {
+        const yPos = toY(tVal);
+
+        // Línea horizontal de cuadrícula
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, yPos);
+        ctx.lineTo(padLeft + gw, yPos);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Muesca en el eje Y
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.beginPath();
+        ctx.moveTo(padLeft - 6, yPos);
+        ctx.lineTo(padLeft, yPos);
+        ctx.stroke();
+
+        // Número en el eje Y
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(`${tVal.toFixed(0)}°C`, padLeft - 9, yPos);
+      }
+
+      // Recta sólida vertical del Eje Y
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, padTop - 8);
+      ctx.lineTo(padLeft, padTop + gh);
+      ctx.stroke();
+
+      // Título del Eje Y
+      ctx.save();
+      ctx.translate(18, padTop + gh / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('Temperatura (°C)', 0, 0);
+      ctx.restore();
+
+      // ----------------------------------------------------
+      // 2. CUADRÍCULA VERTICAL Y GRADUACIÓN DE TIEMPO DEL EJE X
+      // ----------------------------------------------------
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, padTop + gh);
+      ctx.lineTo(padLeft + gw + 10, padTop + gh);
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      const totalSecs = (MAX_POINTS - 1) * 1.5;
+      const intervalSec = 15;
+
+      for (let s = 0; s <= totalSecs; s += intervalSec) {
+        const sampleIdx = Math.round(s / 1.5);
+        const xPos = padLeft + sampleIdx * stepX;
+        if (xPos >= padLeft && xPos <= padLeft + gw) {
+          // Muesca
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.beginPath();
+          ctx.moveTo(xPos, padTop + gh);
+          ctx.lineTo(xPos, padTop + gh + 6);
+          ctx.stroke();
+
+          // Línea vertical sutil
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+          ctx.setLineDash([2, 4]);
+          ctx.beginPath();
+          ctx.moveTo(xPos, padTop);
+          ctx.lineTo(xPos, padTop + gh);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Número en el eje X
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText(`${s}s`, xPos, padTop + gh + 8);
+        }
+      }
+
+      // Título del Eje X
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('Tiempo transcurrido (segundos)', padLeft + gw / 2, padTop + gh + 26);
+
+      // ----------------------------------------------------
+      // 3. FRANJA DE TOLERANCIA Y RECTA DEL SETPOINT CON NÚMEROS
+      // ----------------------------------------------------
+      const minRango = targetTemp - toleranceVal;
+      const maxRango = targetTemp + toleranceVal;
+      const yTolTop = toY(maxRango);
+      const yTolBot = toY(minRango);
+
+      // Sombreado de tolerancia
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
+      ctx.fillRect(padLeft, yTolTop, gw, yTolBot - yTolTop);
+
+      // Líneas de margen superior e inferior
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(padLeft, yTolTop);
+      ctx.lineTo(padLeft + gw, yTolTop);
+      ctx.moveTo(padLeft, yTolBot);
+      ctx.lineTo(padLeft + gw, yTolBot);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Números de límites en el margen derecho
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#34d399';
+      ctx.fillText(`+${toleranceVal.toFixed(1)}° (${maxRango.toFixed(1)}°C)`, padLeft + gw + 5, yTolTop);
+      ctx.fillText(`-${toleranceVal.toFixed(1)}° (${minRango.toFixed(1)}°C)`, padLeft + gw + 5, yTolBot);
+
+      // Recta verde continua del Setpoint
+      const yObj = toY(targetTemp);
+      ctx.strokeStyle = '#93c5fd';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, yObj);
+      ctx.lineTo(padLeft + gw, yObj);
+      ctx.stroke();
+
+      // Placa / Badge con el número exacto del Setpoint
+      ctx.fillStyle = '#93c5fd';
+      ctx.beginPath();
+      ctx.roundRect(padLeft + gw + 4, yObj - 10, 84, 20, 5);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${targetTemp.toFixed(1)}°C`, padLeft + gw + 46, yObj);
+
+      // ----------------------------------------------------
+      // 4. CURVA TEÓRICA IDEAL (1er ORDEN: T(t) = Tamb + (Tobj - Tamb)(1 - e^-t/tau))
+      // ----------------------------------------------------
+      const TAU = 62.5;
+      const T_AMB = 22.0;
+      ctx.beginPath();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.4;
+      ctx.setLineDash([5, 5]);
+
+      const numCurvesPts = Math.max(pts.length, 30);
+      for (let i = 0; i < numCurvesPts; i++) {
+        const x = padLeft + i * stepX;
+        const tSec = i * 1.5;
+        const tempTeorica = T_AMB + (targetTemp - T_AMB) * (1.0 - Math.exp(-tSec / TAU));
+        const y = toY(tempTeorica);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // ----------------------------------------------------
+      // 5. CURVA REAL MEDIDA (LM35 - Naranja sólida con degradado)
+      // ----------------------------------------------------
+      ctx.beginPath();
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 3.4;
+      ctx.lineJoin = 'round';
+
+      for (let i = 0; i < pts.length; i++) {
+        const x = toX(i);
+        const y = toY(pts[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Degradado bajo la curva real
+      ctx.lineTo(toX(pts.length - 1), padTop + gh);
+      ctx.lineTo(toX(0), padTop + gh);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, yObj, 0, padTop + gh);
+      grad.addColorStop(0, 'rgba(249, 115, 22, 0.28)');
+      grad.addColorStop(1, 'rgba(249, 115, 22, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // ----------------------------------------------------
+      // 6. VALORES Y COTAS NUMÉRICAS DIRECTAS SOBRE LA CURVA
+      // ----------------------------------------------------
+      // Pico Máximo
+      if (picoMax !== null) {
+        const maxIdx = tempHistory.lastIndexOf(picoMax);
+        if (maxIdx >= 0) {
+          const xM = toX(maxIdx);
+          const yM = toY(picoMax);
+          ctx.fillStyle = '#1d4ed8';
+          ctx.beginPath();
+          ctx.arc(xM, yM, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
+          ctx.beginPath();
+          ctx.roundRect(xM - 32, yM - 22, 64, 16, 4);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`▲ MÁX ${picoMax.toFixed(1)}°`, xM, yM - 10);
+        }
+      }
+
+      // Último punto (Lectura actual)
+      const lastIdx = pts.length - 1;
+      const xLast = toX(lastIdx);
+      const yLast = toY(actualTemp);
+
+      // Anillo de pulso
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.35)';
+      ctx.beginPath();
+      ctx.arc(xLast, yLast, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Punto sólido central
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath();
+      ctx.arc(xLast, yLast, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Placa flotante con el número actual
+      ctx.fillStyle = '#ea580c';
+      ctx.beginPath();
+      ctx.roundRect(xLast - 38, yLast - 26, 76, 20, 5);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`● ${actualTemp.toFixed(1)}°C Actual`, xLast, yLast - 12);
+
+      // ----------------------------------------------------
+      // 7. HOVER TOOLTIP INTERACTIVO (DATOS AL PASAR EL RATÓN)
+      // ----------------------------------------------------
+      if (hoverIndexLarge !== null && hoverIndexLarge >= 0 && hoverIndexLarge < tempHistory.length) {
+        const hX = toX(hoverIndexLarge);
+        const hY = toY(tempHistory[hoverIndexLarge]);
+
+        // Línea vertical guía
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(hX, padTop);
+        ctx.lineTo(hX, padTop + gh);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Punto de intersección
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(hX, hY, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tarjeta flotante con datos
+        const tipW = 145;
+        const tipH = 62;
+        let tipX = hX + 12;
+        if (tipX + tipW > padLeft + gw) tipX = hX - tipW - 12;
+        let tipY = hY - tipH / 2;
+        if (tipY < padTop) tipY = padTop + 4;
+        if (tipY + tipH > padTop + gh) tipY = padTop + gh - tipH - 4;
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(tipX, tipY, tipW, tipH, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        const tSec = (hoverIndexLarge * 1.5).toFixed(1);
+        const tReal = tempHistory[hoverIndexLarge].toFixed(2);
+        const tTeo = (T_AMB + (targetTemp - T_AMB) * (1.0 - Math.exp(-(hoverIndexLarge * 1.5) / TAU))).toFixed(2);
+
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(`Tiempo: ${tSec} s`, tipX + 10, tipY + 16);
+
+        ctx.fillStyle = '#93c5fd';
+        ctx.fillText(`Temp Real: ${tReal} °C`, tipX + 10, tipY + 34);
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText(`Teórica: ${tTeo} °C`, tipX + 10, tipY + 52);
+      }
+    }
+
+    // ========================================================
+    // DIBUJO DEL GRÁFICO DE PICOS DE POTENCIA Y PULSOS TRIAC
+    // Con Eje Y en Watts graduado, Eje X en Tiempo y Ciclos
+    // ========================================================
+    function resizePulsesCanvas() {
+      if (!pulsesCanvas.parentElement) return;
+      pulsesCanvas.width = pulsesCanvas.parentElement.clientWidth;
+      pulsesCanvas.height = pulsesCanvas.parentElement.clientHeight;
+      drawPulsesChart();
+    }
+
+    function drawPulsesChart() {
+      const ctx = pulsesCanvas.getContext('2d');
+      const w = pulsesCanvas.width;
+      const h = pulsesCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const pulses = powerPulsesHistory.length > 0 ? powerPulsesHistory : [{ active: triacActive, power: triacActive ? 850 : 0 }];
+
+      const padLeft = 72;
+      const padRight = 50;
+      const padTop = 30;
+      const padBottom = 44;
+      const gw = w - padLeft - padRight;
+      const gh = h - padTop - padBottom;
+
+      const stepX = gw / (MAX_POINTS - 1);
+      const offset = MAX_POINTS - pulses.length;
+      const toX = (i) => padLeft + (i + offset) * stepX;
+
+      const y0 = padTop + gh;      // 0 Watts
+      const yMax = padTop + 10;    // 850 Watts (Pico Máx)
+      const yMed = padTop + gh * (1 - 560 / 850);
+      const yLow = padTop + gh * (1 - 280 / 850);
+
+      // ----------------------------------------------------
+      // 1. LÍNEAS DE GUÍA Y ESCALA GRADUADA EN WATTS
+      // ----------------------------------------------------
+      const levels = [
+        { y: yMax, label: '850 W (Pico)', sub: 'Máx' },
+        { y: yMed, label: '560 W', sub: 'Medio' },
+        { y: yLow, label: '280 W', sub: 'Bajo' },
+        { y: y0,   label: '0 W (Corte)', sub: 'Apagado' }
+      ];
+
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      levels.forEach(lvl => {
+        // Línea horizontal
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, lvl.y);
+        ctx.lineTo(padLeft + gw, lvl.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Muesca
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.beginPath();
+        ctx.moveTo(padLeft - 6, lvl.y);
+        ctx.lineTo(padLeft, lvl.y);
+        ctx.stroke();
+
+        // Número en Watts
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(lvl.label, padLeft - 9, lvl.y);
+      });
+
+      // Ejes sólidos
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, padTop);
+      ctx.lineTo(padLeft, padTop + gh);
+      ctx.lineTo(padLeft + gw + 10, padTop + gh);
+      ctx.stroke();
+
+      // Título Eje Y
+      ctx.save();
+      ctx.translate(16, padTop + gh / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('Potencia Eléctrica (Watts)', 0, 0);
+      ctx.restore();
+
+      // Graduaciones en Eje X
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const totalSecs = (MAX_POINTS - 1) * 1.5;
+      for (let s = 0; s <= totalSecs; s += 15) {
+        const sampleIdx = Math.round(s / 1.5);
+        const xPos = padLeft + sampleIdx * stepX;
+        if (xPos >= padLeft && xPos <= padLeft + gw) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.beginPath();
+          ctx.moveTo(xPos, padTop + gh);
+          ctx.lineTo(xPos, padTop + gh + 6);
+          ctx.stroke();
+
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText(`${s}s`, xPos, padTop + gh + 8);
+        }
+      }
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('Tiempo transcurrido (segundos)', padLeft + gw / 2, padTop + gh + 26);
+
+      // ----------------------------------------------------
+      // 2. FORMA DE ONDA DE PULSOS (ONDA CUADRADA DEL TRIAC)
+      // ----------------------------------------------------
+      ctx.beginPath();
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 2.8;
+
+      let sumWatts = 0;
+      let activeCount = 0;
+
+      for (let i = 0; i < pulses.length; i++) {
+        const x = toX(i);
+        const item = pulses[i];
+        const isON = item.active;
+        if (isON) activeCount++;
+        const targetWatts = item.power || (isON ? 850 : 0);
+        sumWatts += targetWatts;
+
+        const y = isON ? (padTop + gh * (1 - targetWatts / 850)) : y0;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          const prevItem = powerPulsesHistory[i - 1];
+          const prevON = prevItem.active;
+          const prevWatts = prevItem.power || (prevON ? 850 : 0);
+          const prevY = prevON ? (padTop + gh * (1 - prevWatts / 850)) : y0;
+
+          if (prevY !== y) {
+            ctx.lineTo(x, prevY); // Flanco vertical de conmutación
+          }
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      // Relleno bajo los pulsos
+      ctx.lineTo(toX(pulses.length - 1), y0);
+      ctx.lineTo(toX(0), y0);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.16)';
+      ctx.fill();
+
+      // ----------------------------------------------------
+      // 3. ANOTACIONES Y MÉTRICAS
+      // ----------------------------------------------------
+      const avgWatts = Math.round(sumWatts / pulses.length);
+      const duty = ((activeCount / pulses.length) * 100).toFixed(1);
+      const sumEl = document.getElementById('pulsesStatSummary');
+      if (sumEl) sumEl.textContent = `${avgWatts} W promedio consumido | Duty: ${duty}%`;
+
+      // ----------------------------------------------------
+      // 4. HOVER TOOLTIP EN PULSOS
+      // ----------------------------------------------------
+      if (hoverIndexPulses !== null && hoverIndexPulses >= 0 && hoverIndexPulses < powerPulsesHistory.length) {
+        const hX = toX(hoverIndexPulses);
+        const item = powerPulsesHistory[hoverIndexPulses];
+        const isON = item.active;
+        const curWatts = item.power || (isON ? 850 : 0);
+        const hY = isON ? (padTop + gh * (1 - curWatts / 850)) : y0;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(hX, padTop);
+        ctx.lineTo(hX, padTop + gh);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(hX, hY, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tooltip
+        const tipW = 140;
+        const tipH = 54;
+        let tipX = hX + 12;
+        if (tipX + tipW > padLeft + gw) tipX = hX - tipW - 12;
+        let tipY = hY - tipH / 2;
+        if (tipY < padTop) tipY = padTop + 4;
+        if (tipY + tipH > padTop + gh) tipY = padTop + gh - tipH - 4;
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(tipX, tipY, tipW, tipH, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        const tSec = (hoverIndexPulses * 1.5).toFixed(1);
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(`Tiempo: ${tSec} s`, tipX + 10, tipY + 16);
+
+        ctx.fillStyle = isON ? '#60a5fa' : '#38bdf8';
+        ctx.fillText(isON ? `TRIAC: ON (${curWatts} W)` : 'TRIAC: OFF (0 W)', tipX + 10, tipY + 36);
+      }
+    }
+    // LOG DE EVENTOS
+    function addLogEntry(msg) {
+      const box = document.getElementById('historyLogContainer');
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+      const item = document.createElement('div');
+      item.className = 'log-row-item';
+      item.innerHTML = `<span class="log-row-time">[${timeStr}]</span> <span class="log-row-msg">${msg}</span>`;
+      box.insertBefore(item, box.firstChild);
+    }
+
+    window.addEventListener('resize', () => {
+      resizeRadar();
+      resizePreview();
+      resizeLargeCanvas();
+      resizePulsesCanvas();
+    });
+
+    // INICIALIZACIÓN INMEDIATA
+    try { updateUI(); } catch (e) { console.error('Error en updateUI inicial:', e); }
+    resizeRadar();
+    resizePreview();
+    drawRadarChart();
+    drawPreviewChart();
+    updateLoop();
+    setInterval(updateLoop, 1200);
+  </script>
+</body>
+</html>
