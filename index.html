@@ -719,6 +719,26 @@
 
     .alarm-banner.show {
       display: flex;
+      animation: alarmBlinkRed 0.9s ease-in-out infinite;
+    }
+
+    .alarm-banner.show.warn {
+      animation: none;
+    }
+
+    @keyframes alarmBlinkRed {
+      0%, 100% {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #991b1b;
+        box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+      }
+      50% {
+        background: #dc2626;
+        border-color: #b91c1c;
+        color: #ffffff;
+        box-shadow: 0 0 22px rgba(220, 38, 38, 0.45);
+      }
     }
 
     .alarm-banner.warn {
@@ -729,6 +749,71 @@
 
     .alarm-banner svg {
       flex-shrink: 0;
+    }
+
+    /* PANEL SIMULADOR DE ALERTAS (DEMO EN MODO PILOTO) */
+    .sim-alerts-card {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: 16px;
+      background: #f8fbff;
+      border: 1px solid #bfdbfe;
+    }
+
+    .sim-alerts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .sim-alerts-title {
+      font-family: var(--font-display);
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--blue-950);
+    }
+
+    .sim-alerts-sub {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    .sim-alerts-grid {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-sim-fault {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--blue-200);
+      background: #ffffff;
+      color: var(--blue-900);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .btn-sim-fault:hover {
+      background: var(--blue-50);
+      border-color: var(--blue-400);
+    }
+
+    .btn-sim-fault.active {
+      background: var(--blue-700);
+      border-color: var(--blue-700);
+      color: #ffffff;
+    }
+
+    .btn-sim-fault.reset {
+      background: var(--blue-50);
+      color: var(--blue-800);
     }
 
     .hero-power-footer {
@@ -1715,6 +1800,31 @@
         </div>
       </div>
 
+      <!-- SIMULADOR DE ALERTAS (VISIBLE EN MODO PILOTO PARA DEMOSTRACIÓN) -->
+      <div class="sim-alerts-card" id="simAlertsCard" style="display: none;">
+        <div class="sim-alerts-header">
+          <div class="sim-alerts-title">Simulador de alertas (Modo Piloto)</div>
+          <div class="sim-alerts-sub" id="simFaultStatusText">Operación normal</div>
+        </div>
+        <div class="sim-alerts-grid">
+          <button type="button" class="btn-sim-fault" id="btnFaultOvertemp" onclick="triggerSimFault('overtemp')">
+            Sobretemperatura (&gt;55 °C)
+          </button>
+          <button type="button" class="btn-sim-fault" id="btnFaultSensor" onclick="triggerSimFault('sensor')">
+            Sensor LM35 desconectado
+          </button>
+          <button type="button" class="btn-sim-fault" id="btnFaultEsp32" onclick="triggerSimFault('esp32')">
+            ESP32 desconectado
+          </button>
+          <button type="button" class="btn-sim-fault" id="btnFaultTriac" onclick="triggerSimFault('triac')">
+            Falla TRIAC / Secadora
+          </button>
+          <button type="button" class="btn-sim-fault reset" onclick="triggerSimFault(null)">
+            Restablecer normal
+          </button>
+        </div>
+      </div>
+
       <!-- FILA INFERIOR: 3 TARJETAS BLANCAS MINIMALISTAS -->
       <section class="bottom-cards-grid">
 
@@ -1990,6 +2100,8 @@
     let manualState = false;  // true = ON, false = OFF en modo manual
     let lastDataAt = 0;       // hora del último dato recibido (ESP32 o simulación)
     let sensorOK = true;      // false cuando el ESP32 reporta el LM35 desconectado
+    let esp32DisconnectedAlert = false; // true cuando el ESP32 se desconectó inesperadamente
+    let simFault = null;      // null | 'overtemp' | 'sensor' | 'esp32' | 'triac' (solo en Modo Piloto)
     let faseESP = '';         // 'NORMAL', 'RAFAGA' o 'ESPERA' (modo automatico del ESP32)
 
     // TIEMPOS (en segundos)
@@ -2227,8 +2339,13 @@
       const icon = document.getElementById('simIcon');
       const pillMsg = document.getElementById('pillStatusMsg');
 
+      const simCard = document.getElementById('simAlertsCard');
       if (simMode) {
-        if (usbConnected) disconnectUsb();
+        if (usbConnected) disconnectUsb(true);
+        esp32DisconnectedAlert = false;
+        simFault = null;
+        updateSimFaultButtonsUI();
+        if (simCard) simCard.style.display = 'flex';
         btn.classList.add('pilot-active');
         label.textContent = 'Simulación activa';
         icon.innerHTML = ICON_SIM;
@@ -2236,6 +2353,11 @@
         addLogEntry('Modo Simulación ACTIVADO');
         updateLoop();
       } else {
+        simFault = null;
+        sensorOK = true;
+        esp32DisconnectedAlert = false;
+        updateSimFaultButtonsUI();
+        if (simCard) simCard.style.display = 'none';
         btn.classList.remove('pilot-active');
         label.textContent = 'Modo Piloto';
         icon.innerHTML = ICON_ESP;
@@ -2448,7 +2570,7 @@
 
     async function toggleUsbConnection() {
       if (usbConnected) {
-        await disconnectUsb();
+        await disconnectUsb(true);
         return;
       }
       if (!('serial' in navigator)) {
@@ -2461,6 +2583,7 @@
         await usbPort.open({ baudRate: 115200 });
         usbWriter = usbPort.writable.getWriter();
         usbConnected = true;
+        esp32DisconnectedAlert = false;
 
         if (simMode) {
           simMode = false;
@@ -2478,11 +2601,19 @@
         if (err && err.name !== 'NotFoundError') {
           addLogEntry('Error al abrir puerto USB: ' + err.message);
         }
-        await disconnectUsb();
+        await disconnectUsb(true);
       }
     }
 
-    async function disconnectUsb() {
+    function dispararAlarmaEsp32Desconectado(motivo) {
+      if (esp32DisconnectedAlert || simMode) return;
+      esp32DisconnectedAlert = true;
+      addLogEntry('ALERTA: ' + motivo);
+      sonarAlertaSensor();
+    }
+
+    async function disconnectUsb(manual = false) {
+      const estabaConectado = usbConnected;
       usbConnected = false;
       try { if (usbReader) await usbReader.cancel(); } catch (e) {}
       try { if (usbReadDone) await usbReadDone; } catch (e) {}
@@ -2493,6 +2624,11 @@
       usbPort = null;
       usbReadDone = null;
       updateUsbButtonUI(false);
+      if (manual) {
+        esp32DisconnectedAlert = false;
+      } else if (estabaConectado) {
+        dispararAlarmaEsp32Desconectado('ESP32 desconectado (se perdió la conexión USB)');
+      }
       if (!simMode) setDisconnectedState();
     }
 
@@ -2553,10 +2689,106 @@
       await sendUsbCommand(`MODO ${modoStr}`);
     }
 
+    function updateSimFaultButtonsUI() {
+      const map = {
+        overtemp: 'btnFaultOvertemp',
+        sensor: 'btnFaultSensor',
+        esp32: 'btnFaultEsp32',
+        triac: 'btnFaultTriac'
+      };
+      Object.entries(map).forEach(([k, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active', simFault === k);
+      });
+      const st = document.getElementById('simFaultStatusText');
+      if (st) {
+        const names = {
+          overtemp: 'Falla simulada: Sobretemperatura',
+          sensor: 'Falla simulada: Sensor LM35 desconectado',
+          esp32: 'Falla simulada: ESP32 desconectado',
+          triac: 'Falla simulada: TRIAC / Secadora sin respuesta'
+        };
+        st.textContent = simFault ? names[simFault] : 'Operación normal';
+      }
+    }
+
+    function triggerSimFault(fault) {
+      if (!simMode) return;
+      simFault = (simFault === fault) ? null : fault;
+      esp32DisconnectedAlert = false;
+      sensorOK = true;
+      updateSimFaultButtonsUI();
+
+      if (simFault === 'overtemp') {
+        actualTemp = 58.5;
+        triacActive = false;
+        addLogEntry('DEMO ALERTA: Sobretemperatura simulada (58.5 °C > 55 °C)');
+        sonarAlertaSensor();
+      } else if (simFault === 'sensor') {
+        addLogEntry('DEMO ALERTA: Sensor LM35 desconectado');
+        sonarAlertaSensor();
+      } else if (simFault === 'esp32') {
+        esp32DisconnectedAlert = true;
+        lastDataAt = 0;
+        addLogEntry('DEMO ALERTA: ESP32 desconectado');
+        sonarAlertaSensor();
+        setDisconnectedState();
+      } else if (simFault === 'triac') {
+        actualTemp = Math.min(actualTemp, 29.0);
+        triacActive = false;
+        addLogEntry('DEMO ALERTA: Falla de etapa de potencia (TRIAC / Secadora sin corriente)');
+        sonarAlertaSensor();
+      } else {
+        actualTemp = 26.0;
+        addLogEntry('DEMO: Sistema restablecido a operación normal');
+      }
+      updateLoop();
+    }
+
     // SIMULACIÓN FÍSICA PARA MODO PILOTO EN COMPUTADORA
     let simStep = 0;
     function simulateThermalPhysics() {
       simStep++;
+
+      if (simFault === 'overtemp') {
+        actualTemp = 58.5 + (Math.random() * 0.4 - 0.2);
+        triacActive = false;
+        return {
+          valido: true,
+          temperatura: actualTemp,
+          objetivo: targetTemp,
+          tolerancia: toleranceVal,
+          potencia: powerLevel,
+          calefaccion: false
+        };
+      }
+
+      if (simFault === 'sensor') {
+        triacActive = false;
+        return {
+          valido: false,
+          temperatura: null,
+          objetivo: targetTemp,
+          tolerancia: toleranceVal,
+          potencia: powerLevel,
+          calefaccion: false
+        };
+      }
+
+      if (simFault === 'triac') {
+        // El sistema intenta calentar pero la secadora no responde (TRIAC abierto/quemado o secadora desconectada)
+        triacActive = false;
+        actualTemp = Math.max(22.0, actualTemp - 0.08);
+        return {
+          valido: true,
+          temperatura: actualTemp,
+          objetivo: targetTemp,
+          tolerancia: toleranceVal,
+          potencia: powerLevel,
+          calefaccion: false
+        };
+      }
+
       const minR = targetTemp - toleranceVal;
       let heatFactor = 0.55;
       let dutyOn = true;
@@ -2617,13 +2849,21 @@
 
     async function updateLoopInner() {
       if (simMode) {
+        if (simFault === 'esp32') {
+          esp32DisconnectedAlert = true;
+          lastDataAt = 0;
+          setDisconnectedState();
+          isUpdating = false;
+          return;
+        }
         const data = simulateThermalPhysics();
         processEsp32Data(data);
       } else if (!usbConnected) {
         setDisconnectedState();
       } else if (lastDataAt > 0 && Date.now() - lastDataAt > 4000) {
         const pText = document.getElementById('rangePulseText');
-        if (pText) pText.innerHTML = '<span style="color:#2563eb;">Esperando datos por USB...</span>';
+        if (pText) pText.innerHTML = '<span style="color:#2563eb;">Sin respuesta del ESP32...</span>';
+        dispararAlarmaEsp32Desconectado('ESP32 dejó de responder por USB');
       }
       isUpdating = false;
     }
@@ -2632,6 +2872,7 @@
       if (!data) return;
       consecutiveErrors = 0;
       lastDataAt = Date.now();
+      esp32DisconnectedAlert = false;
 
       if (data.temperatura !== null && data.temperatura !== undefined) {
         actualTemp = data.temperatura;
@@ -2642,7 +2883,7 @@
       faseESP = (!simMode && data.fase) ? data.fase : '';
 
       // ALERTA: SENSOR LM35 DESCONECTADO (el ESP32 responde pero el sensor no)
-      const sensorAhora = simMode || data.valido !== false;
+      const sensorAhora = data.valido !== false;
       if (sensorAhora !== sensorOK) {
         sensorOK = sensorAhora;
         if (!sensorOK) {
@@ -3760,7 +4001,8 @@
       }
 
       function isOnline() {
-        return simMode || (lastDataAt > 0 && Date.now() - lastDataAt < 8000);
+        if (simMode) return simFault !== 'esp32';
+        return lastDataAt > 0 && Date.now() - lastDataAt < 8000;
       }
 
       // ---------------- geometría ----------------
@@ -4177,9 +4419,15 @@
         }
         const b = document.getElementById('alarmBanner'), t = document.getElementById('alarmText');
         if (b && t) {
-          if (online && !simMode && !sensorOK) {
+          if (esp32DisconnectedAlert) {
+            b.className = 'alarm-banner show';
+            t.textContent = 'ESP32 desconectado. Se perdió la conexión USB con la placa. Revisa el cable o vuelve a hacer clic en «Conectar USB».';
+          } else if (online && !sensorOK) {
             b.className = 'alarm-banner show';
             t.textContent = 'Sensor de temperatura (LM35) desconectado. El ESP32 está conectado pero no recibe lectura en GPIO 34. La secadora se apagó en modo automático: revisa el cable del sensor.';
+          } else if (online && simMode && simFault === 'triac') {
+            b.className = 'alarm-banner show';
+            t.textContent = 'Falla en etapa de potencia (TRIAC abierto/quemado o secadora desconectada). El sistema ordenó calentar pero no hay subida térmica; el diagnóstico eléctrico directo requiere sensor de corriente (ACS712).';
           } else if (online && actualTemp >= LIMITE_TAPA) {
             b.className = 'alarm-banner show';
             t.textContent = 'Interior a ' + actualTemp.toFixed(1) + ' °C. La tapa de PLA se empieza a ablandar arriba de ~' + LIMITE_TAPA + ' °C: baja el objetivo o apaga la secadora.';
