@@ -1726,7 +1726,7 @@
               <div class="oven3d-legend">
                 <span>20°</span>
                 <div class="oven3d-scale">
-                  <span class="oven3d-limit" style="left: 77.8%;" title="Límite de la tapa de PLA (~55 °C)"></span>
+                  <span class="oven3d-limit" style="left: 88.9%;" title="Aviso de temperatura alta (60 °C)"></span>
                   <span class="oven3d-marker" id="oven3dMarker"></span>
                 </div>
                 <span>65°</span>
@@ -1782,6 +1782,160 @@
         </div>
       </div>
 
+      <!-- TIPO DE CONTROL AUTOMATICO: RAFAGAS FIJAS / PID / AUTOAJUSTE + SEGURIDAD + CONEXION -->
+      <div id="panelControlPID" style="border:1px solid rgba(100,116,139,0.35); background:rgba(148,163,184,0.08); border-radius:14px; padding:12px 16px; display:flex; flex-direction:column; gap:10px; color:inherit;">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+          <span style="font-size:0.78rem; font-weight:800; letter-spacing:0.04em; opacity:0.8;">CONTROL AUTOMÁTICO</span>
+          <button type="button" class="ctl-btn" data-ctl="rafaga" onclick="cambiarControl('rafaga')">Ráfagas fijas</button>
+          <button type="button" class="ctl-btn" data-ctl="pid" onclick="cambiarControl('pid')">PID</button>
+          <button type="button" class="ctl-btn" data-ctl="autotune" onclick="cambiarControl('autotune')">Autoajuste PID</button>
+          <span id="ctlInfo" style="font-size:0.8rem; opacity:0.85; margin-left:auto;">Esperando ESP32...</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:0.78rem;">
+          <span style="opacity:0.8;">Kp</span><input id="inKp" class="ctl-in" type="number" step="0.01">
+          <span style="opacity:0.8;">Ki</span><input id="inKi" class="ctl-in" type="number" step="0.001">
+          <span style="opacity:0.8;">Kd</span><input id="inKd" class="ctl-in" type="number" step="0.05">
+          <span style="opacity:0.8;">Banda °C</span><input id="inBanda" class="ctl-in" type="number" step="0.5">
+          <button type="button" class="ctl-btn" onclick="guardarGanancias()">Guardar</button>
+          <span style="width:1px; height:18px; background:rgba(100,116,139,0.4); margin:0 4px;"></span>
+          <span style="opacity:0.8;">Termómetro de referencia marca</span><input id="inRef" class="ctl-in" type="number" step="0.1" placeholder="°C">
+          <button type="button" class="ctl-btn" onclick="calibrarSensor()">Calibrar</button>
+          <span id="calInfo" style="opacity:0.75;"></span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:0.78rem;">
+          <span style="font-weight:800; letter-spacing:0.04em; opacity:0.8;">SEGURIDAD</span>
+          <button type="button" class="ctl-btn peligro" id="btnDemoSobrecal" onclick="demoSobrecalentamiento()">Simular sobrecalentamiento (65 °C · 6 s)</button>
+          <span id="demoInfo" style="opacity:0.85;">Aviso a 60 °C · el ESP32 apaga la secadora sola a 65 °C reales</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:0.78rem;">
+          <span style="font-weight:800; letter-spacing:0.04em; opacity:0.8;">CONEXIÓN</span>
+          <span id="conexionInfo" style="opacity:0.9;">—</span>
+          <button type="button" class="ctl-btn" onclick="abrirWifiConfig()">Configurar Wi-Fi</button>
+          <button type="button" class="ctl-btn" style="background:#2563eb;color:#fff;border-color:#2563eb;" onclick="abrirPruebaCompleta()">Prueba completa (3 en 1)</button>
+          <span id="pruebaInfo" style="opacity:0.85;"></span>
+        </div>
+      </div>
+      <style>
+        .ctl-btn { border:1px solid rgba(100,116,139,0.45); background:transparent; color:inherit; border-radius:8px; padding:5px 11px; font-size:0.78rem; font-weight:700; cursor:pointer; }
+        .ctl-btn:hover { border-color:#38bdf8; }
+        .ctl-btn.activo { background:#2563eb; border-color:#2563eb; color:#fff; }
+        .ctl-btn.peligro { border-color:#dc2626; color:#dc2626; }
+        .ctl-btn.peligro:hover { background:#dc2626; color:#fff; }
+        .ctl-btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .ctl-in { width:70px; border:1px solid rgba(100,116,139,0.45); background:rgba(255,255,255,0.06); color:inherit; border-radius:6px; padding:4px 6px; font-size:0.78rem; }
+      </style>
+      <script>
+        let ctlEditando = 0; // no pisar lo que el usuario escribe
+        document.addEventListener('input', (e) => { if (e.target.classList && e.target.classList.contains('ctl-in')) ctlEditando = Date.now(); });
+
+        function hayConexionEsp() { return (typeof usbConnected !== 'undefined' && usbConnected) || (typeof wifiConnected !== 'undefined' && wifiConnected); }
+
+        async function enviarControl(cmd) {
+          if (typeof simMode !== 'undefined' && simMode) {
+            document.getElementById('ctlInfo').textContent = 'Solo funciona conectado al ESP32 (USB o Wi-Fi)';
+            return;
+          }
+          if (!hayConexionEsp()) {
+            document.getElementById('ctlInfo').textContent = 'Conecta el ESP32 por USB o Wi-Fi primero';
+            return;
+          }
+          await sendUsbCommand(cmd);
+          if (typeof addLogEntry === 'function') addLogEntry('Comando: ' + cmd);
+        }
+        function cambiarControl(ctl) {
+          if (ctl === 'autotune' && !confirm('El autoajuste prende y apaga la secadora alrededor del objetivo por varios minutos para medir el horno. Deja la lonchera cerrada y el objetivo fijo. ¿Empezar?')) return;
+          enviarControl('SET ctl=' + ctl);
+        }
+        function guardarGanancias() {
+          const kp = document.getElementById('inKp').value, ki = document.getElementById('inKi').value;
+          const kd = document.getElementById('inKd').value, banda = document.getElementById('inBanda').value;
+          ctlEditando = 0;
+          enviarControl(`SET kp=${kp} ki=${ki} kd=${kd} banda=${banda}`);
+        }
+        function calibrarSensor() {
+          const ref = parseFloat(document.getElementById('inRef').value);
+          if (!isFinite(ref)) return;
+          document.getElementById('inRef').value = '';
+          enviarControl('SET ref=' + ref.toFixed(2));
+        }
+
+        // DEMO DE SOBRECALENTAMIENTO: 65 °C por 6 s solo para mostrar la alerta.
+        // Seguridad: pide confirmacion, no se puede repetir mientras dura, el ESP32 apaga
+        // la secadora a la fuerza durante la demo y termina solo a los 6 s.
+        let demoBloqueadaHasta = 0;
+        function demoSobrecalentamiento() {
+          if (Date.now() < demoBloqueadaHasta) return;
+          const enSim = (typeof simMode !== 'undefined' && simMode);
+          if (!enSim && !hayConexionEsp()) {
+            document.getElementById('demoInfo').textContent = 'Conecta el ESP32 (USB o Wi-Fi) o activa el Modo Piloto';
+            return;
+          }
+          if (!confirm('DEMOSTRACIÓN: el horno va a reportar 65 °C durante 6 segundos para mostrar la alerta de sobrecalentamiento.\n\nNo calienta de verdad: mientras dure, la secadora queda APAGADA por seguridad.\n\n¿Activar?')) return;
+          demoBloqueadaHasta = Date.now() + 8000;
+          const btn = document.getElementById('btnDemoSobrecal');
+          btn.disabled = true;
+          setTimeout(() => { btn.disabled = false; }, 8000);
+          if (enSim) {
+            iniciarDemoPiloto();
+          } else {
+            sendUsbCommand('DEMO sobrecalentamiento');
+          }
+          if (typeof addLogEntry === 'function') addLogEntry('DEMO: sobrecalentamiento simulado (65 °C por 6 s)');
+        }
+
+        function abrirWifiConfig() {
+          const base = (typeof wifiConnected !== 'undefined' && wifiConnected) ? API_BASE : 'http://192.168.4.1';
+          window.open((base || '') + '/wifi', '_blank');
+        }
+        function abrirPruebaCompleta() {
+          if (typeof wifiConnected !== 'undefined' && wifiConnected) {
+            window.open((API_BASE || '') + '/prueba', '_blank');
+            return;
+          }
+          if (typeof usbConnected !== 'undefined' && usbConnected) {
+            if (!confirm('Por USB la prueba corre sola en el ESP32 (1-2 horas) y aquí ves en qué etapa va. La tabla y la gráfica de resultados se ven por Wi-Fi en /prueba. ¿Iniciar con 15 min por prueba?')) return;
+            enviarControl('PRUEBA iniciar 15');
+            return;
+          }
+          document.getElementById('pruebaInfo').textContent = 'Conecta el ESP32 primero';
+        }
+
+        function actualizarPanelControl(data) {
+          const ci = document.getElementById('conexionInfo');
+          if (ci) {
+            if (typeof simMode !== 'undefined' && simMode) ci.textContent = 'Modo Piloto (simulación)';
+            else if (typeof usbConnected !== 'undefined' && usbConnected) ci.textContent = 'USB' + (data && data.red ? ` · el ESP32 también está en el Wi-Fi "${data.red}" (${data.ip})` : '');
+            else if (typeof wifiConnected !== 'undefined' && wifiConnected) ci.textContent = 'Wi-Fi · ' + (API_BASE || location.host) + (data && data.red ? ` · red "${data.red}"` : ' · red Horno4_0');
+            else ci.textContent = 'Sin conexión: Conectar USB, o abre la red Horno4_0 / horno.local';
+          }
+          if (!data || data.control === undefined) {
+            document.getElementById('ctlInfo').textContent = (typeof simMode !== 'undefined' && simMode) ? 'Simulación: el PID corre en el ESP32' : 'Esperando ESP32...';
+            return;
+          }
+          const clave = data.control === 'PID' ? 'pid' : (data.control === 'AUTOTUNE' ? 'autotune' : 'rafaga');
+          document.querySelectorAll('#panelControlPID .ctl-btn[data-ctl]').forEach(b => b.classList.toggle('activo', b.dataset.ctl === clave));
+          let info = '';
+          if (clave === 'pid') info = `PID · encendido ${data.duty}% de cada ráfaga · ${data.temp2 !== undefined ? Number(data.temp2).toFixed(2) : ''} °C`;
+          else if (clave === 'autotune') info = 'Autoajuste: ' + (data.at || '...');
+          else info = 'Ráfagas fijas (50%)';
+          if (clave !== 'autotune' && data.at && data.at.startsWith('Listo')) info += ' · último autoajuste: ' + data.at.substring(7);
+          if (clave !== 'autotune' && data.at && data.at.startsWith('Cancelado')) info += ' · ' + data.at;
+          document.getElementById('ctlInfo').textContent = info;
+          if (Date.now() - ctlEditando > 15000) {
+            document.getElementById('inKp').value = data.kp;
+            document.getElementById('inKi').value = data.ki;
+            document.getElementById('inKd').value = data.kd;
+            document.getElementById('inBanda').value = data.banda;
+          }
+          document.getElementById('calInfo').textContent = 'ajuste actual ' + (data.cal >= 0 ? '+' : '') + Number(data.cal).toFixed(2) + ' °C';
+          document.getElementById('pruebaInfo').textContent = data.prueba ? '· ' + data.prueba : '';
+          const di = document.getElementById('demoInfo');
+          if (data.demo) di.innerHTML = `<b style="color:#dc2626">DEMO activa: 65 °C · ${data.demoSeg} s</b> · secadora apagada`;
+          else if (data.proteccion) di.innerHTML = '<b style="color:#dc2626">PROTECCIÓN ACTIVA: secadora apagada hasta bajar de 60 °C</b>';
+          else di.textContent = 'Aviso a 60 °C · el ESP32 apaga la secadora sola a 65 °C reales';
+        }
+      </script>
+
       <!-- CONTROL MANUAL (SOLO VISIBLE EN MODO MANUAL) -->
       <div class="manual-control-card" id="manualControlCard" style="display: none;">
         <div class="manual-card-header">
@@ -1808,7 +1962,7 @@
         </div>
         <div class="sim-alerts-grid">
           <button type="button" class="btn-sim-fault" id="btnFaultOvertemp" onclick="triggerSimFault('overtemp')">
-            Sobretemperatura (&gt;55 °C)
+            Sobretemperatura (65 °C)
           </button>
           <button type="button" class="btn-sim-fault" id="btnFaultSensor" onclick="triggerSimFault('sensor')">
             Sensor LM35 desconectado
@@ -2100,6 +2254,10 @@
     let manualState = false;  // true = ON, false = OFF en modo manual
     let lastDataAt = 0;       // hora del último dato recibido (ESP32 o simulación)
     let sensorOK = true;      // false cuando el ESP32 reporta el LM35 desconectado
+    const TEMP_ALERTA = 60;   // °C: aviso de temperatura alta (el PLA se ablanda ~55-60 °C)
+    let espDemo = false;        // el ESP32 esta en demo de sobrecalentamiento
+    let espProteccion = false;  // el ESP32 apago la secadora por >= 65 °C reales
+    let alertaTempSonada = false;
     let esp32DisconnectedAlert = false; // true cuando el ESP32 se desconectó inesperadamente
     let simFault = null;      // null | 'overtemp' | 'sensor' | 'esp32' | 'triac' (solo en Modo Piloto)
     let faseESP = '';         // 'NORMAL', 'RAFAGA' o 'ESPERA' (modo automatico del ESP32)
@@ -2417,13 +2575,13 @@
       document.getElementById('pillTempActual').textContent = '--.-°C';
       document.getElementById('centerTempVal').textContent = '--.-';
       document.getElementById('actualDisplaySub').textContent = '--.-';
-      document.getElementById('pillStatusMsg').textContent = 'USB desconectado';
+      document.getElementById('pillStatusMsg').textContent = 'Sin conexión (USB o Wi-Fi)';
       lastDataAt = 0;
       sensorOK = true;
 
       const pulseBadge = document.getElementById('rangePulseBadge');
       pulseBadge.className = 'range-pulse-indicator';
-      pulseBadge.innerHTML = '<span id="rangePulseDot" style="color:#bfdbfe;">●</span> <span id="rangePulseText">Conecta el USB o Modo Piloto</span>';
+      pulseBadge.innerHTML = '<span id="rangePulseDot" style="color:#bfdbfe;">●</span> <span id="rangePulseText">Conecta USB, Wi-Fi o Modo Piloto</span>';
 
       const heroBadge = document.getElementById('heroBadgeStatus');
       heroBadge.className = 'badge-suboptimal';
@@ -2674,11 +2832,54 @@
       });
     }
 
-    async function sendUsbCommand(cmd) {
-      if (simMode || !usbConnected || !usbWriter) return;
+    // CONEXIÓN POR WI-FI (si no hay USB): el ESP32 en la red de la casa (horno.local)
+    // o en su propia red Horno4_0 (192.168.4.1). Mismo protocolo de comandos que el USB.
+    const API_CANDIDATOS = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
+      ? [''] : ['http://horno.local', 'http://192.168.4.1'];
+    let apiIdx = 0;
+    let API_BASE = API_CANDIDATOS[0];
+    let wifiConnected = false;
+    let wifiFallos = 0;
+
+    async function leerEstadoWifi() {
       try {
-        await usbWriter.write(textEncoder.encode(cmd + '\n'));
-      } catch (err) {}
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1100);
+        const res = await fetch(API_BASE + '/estado', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const data = await res.json();
+        if (!wifiConnected) {
+          addLogEntry('ESP32 conectado por Wi-Fi (' + (API_BASE || location.host) + ')');
+          document.getElementById('pillStatusMsg').textContent = 'Wi-Fi conectado';
+          syncWithESP32();
+        }
+        wifiConnected = true;
+        wifiFallos = 0;
+        return data;
+      } catch (e) {
+        wifiFallos++;
+        apiIdx = (apiIdx + 1) % API_CANDIDATOS.length;   // prueba la otra dirección
+        API_BASE = API_CANDIDATOS[apiIdx];
+        if (wifiConnected && wifiFallos >= 3) {
+          wifiConnected = false;
+          dispararAlarmaEsp32Desconectado('ESP32 desconectado (se perdió la conexión Wi-Fi)');
+        }
+        return null;
+      }
+    }
+
+    // Envía un comando por USB si está conectado; si no, por Wi-Fi
+    async function sendUsbCommand(cmd) {
+      if (simMode) return;
+      if (usbConnected && usbWriter) {
+        try {
+          await usbWriter.write(textEncoder.encode(cmd + '\n'));
+        } catch (err) {}
+        return;
+      }
+      if (wifiConnected) {
+        try { await fetch(`${API_BASE}/cmd?c=${encodeURIComponent(cmd)}`); } catch (err) {}
+      }
     }
 
     async function syncWithESP32() {
@@ -2720,9 +2921,9 @@
       updateSimFaultButtonsUI();
 
       if (simFault === 'overtemp') {
-        actualTemp = 58.5;
+        actualTemp = 65.0;
         triacActive = false;
-        addLogEntry('DEMO ALERTA: Sobretemperatura simulada (58.5 °C > 55 °C)');
+        addLogEntry('DEMO ALERTA: Sobretemperatura simulada (65 °C > 60 °C)');
         sonarAlertaSensor();
       } else if (simFault === 'sensor') {
         addLogEntry('DEMO ALERTA: Sensor LM35 desconectado');
@@ -2745,13 +2946,33 @@
       updateLoop();
     }
 
+    // DEMO DE SOBRECALENTAMIENTO EN MODO PILOTO (65 °C por 6 s y vuelve)
+    let simDemoHasta = 0;
+    function iniciarDemoPiloto() {
+      const antes = actualTemp;
+      simFault = 'overtemp';
+      simDemoHasta = Date.now() + 6000;
+      updateSimFaultButtonsUI();
+      sonarAlertaSensor();
+      updateLoop();
+      setTimeout(() => {
+        if (simFault === 'overtemp') {
+          simFault = null;
+          actualTemp = antes;
+          updateSimFaultButtonsUI();
+          addLogEntry('DEMO: fin del sobrecalentamiento simulado');
+          updateLoop();
+        }
+      }, 6000);
+    }
+
     // SIMULACIÓN FÍSICA PARA MODO PILOTO EN COMPUTADORA
     let simStep = 0;
     function simulateThermalPhysics() {
       simStep++;
 
       if (simFault === 'overtemp') {
-        actualTemp = 58.5 + (Math.random() * 0.4 - 0.2);
+        actualTemp = 65.0 + (Math.random() * 0.4 - 0.2);
         triacActive = false;
         return {
           valido: true,
@@ -2759,7 +2980,8 @@
           objetivo: targetTemp,
           tolerancia: toleranceVal,
           potencia: powerLevel,
-          calefaccion: false
+          calefaccion: false,
+          demo: Date.now() < simDemoHasta
         };
       }
 
@@ -2859,7 +3081,14 @@
         const data = simulateThermalPhysics();
         processEsp32Data(data);
       } else if (!usbConnected) {
-        setDisconnectedState();
+        // Sin USB: intenta por Wi-Fi
+        const data = await leerEstadoWifi();
+        if (data) {
+          processEsp32Data(data);
+        } else if (!wifiConnected) {
+          setDisconnectedState();
+          actualizarPanelControl(null);
+        }
       } else if (lastDataAt > 0 && Date.now() - lastDataAt > 4000) {
         const pText = document.getElementById('rangePulseText');
         if (pText) pText.innerHTML = '<span style="color:#2563eb;">Sin respuesta del ESP32...</span>';
@@ -2881,6 +3110,20 @@
         triacActive = data.calefaccion;
       }
       faseESP = (!simMode && data.fase) ? data.fase : '';
+      espDemo = !!data.demo;
+      espProteccion = !!data.proteccion;
+      actualizarPanelControl(simMode ? null : data);
+
+      // ALERTA: TEMPERATURA ALTA (suena una vez al pasar de 60 °C)
+      if (data.valido !== false && actualTemp >= TEMP_ALERTA) {
+        if (!alertaTempSonada) {
+          alertaTempSonada = true;
+          addLogEntry((espDemo ? 'DEMO ' : '') + 'ALERTA: temperatura alta ' + actualTemp.toFixed(1) + ' °C (aviso a ' + TEMP_ALERTA + ' °C)');
+          sonarAlertaSensor();
+        }
+      } else if (actualTemp < TEMP_ALERTA - 1) {
+        alertaTempSonada = false;
+      }
 
       // ALERTA: SENSOR LM35 DESCONECTADO (el ESP32 responde pero el sensor no)
       const sensorAhora = data.valido !== false;
@@ -2919,7 +3162,8 @@
         }
       }
 
-      // Historial
+      // Historial (la demo de 65 °C no se guarda para no ensuciar las gráficas)
+      if (espDemo) { updateUI(); return; }
       tempHistory.push(actualTemp);
       if (tempHistory.length > MAX_POINTS) tempHistory.shift();
 
@@ -3959,7 +4203,7 @@
        powerLevel, simMode, lastDataAt.
        ===================================================================== */
     (function () {
-      const LIMITE_TAPA = 55;   // °C: el PLA se empieza a ablandar ~55-60 °C
+      const LIMITE_TAPA = TEMP_ALERTA;   // °C: aviso de temperatura alta (60 °C)
       const LIFT = 110;         // cuánto sube la tapa al abrirla (mm)
       const CAMD = 900;         // distancia de la cámara (perspectiva)
 
@@ -4421,16 +4665,22 @@
         if (b && t) {
           if (esp32DisconnectedAlert) {
             b.className = 'alarm-banner show';
-            t.textContent = 'ESP32 desconectado. Se perdió la conexión USB con la placa. Revisa el cable o vuelve a hacer clic en «Conectar USB».';
+            t.textContent = 'ESP32 desconectado. Se perdió la conexión con la placa (USB o Wi-Fi). Revisa el cable o la red y vuelve a conectar.';
           } else if (online && !sensorOK) {
             b.className = 'alarm-banner show';
             t.textContent = 'Sensor de temperatura (LM35) desconectado. El ESP32 está conectado pero no recibe lectura en GPIO 34. La secadora se apagó en modo automático: revisa el cable del sensor.';
           } else if (online && simMode && simFault === 'triac') {
             b.className = 'alarm-banner show';
             t.textContent = 'Falla en etapa de potencia (TRIAC abierto/quemado o secadora desconectada). El sistema ordenó calentar pero no hay subida térmica; el diagnóstico eléctrico directo requiere sensor de corriente (ACS712).';
+          } else if (online && espDemo) {
+            b.className = 'alarm-banner show';
+            t.textContent = 'DEMOSTRACIÓN · Sobrecalentamiento: el interior marca ' + actualTemp.toFixed(1) + ' °C. En un caso real el ESP32 apaga la secadora sola a 65 °C y no la vuelve a encender hasta bajar de 60 °C.';
+          } else if (online && espProteccion) {
+            b.className = 'alarm-banner show';
+            t.textContent = 'SOBRECALENTAMIENTO: el interior llegó a 65 °C. El ESP32 apagó la secadora por seguridad y no la vuelve a encender hasta bajar de 60 °C.';
           } else if (online && actualTemp >= LIMITE_TAPA) {
             b.className = 'alarm-banner show';
-            t.textContent = 'Interior a ' + actualTemp.toFixed(1) + ' °C. La tapa de PLA se empieza a ablandar arriba de ~' + LIMITE_TAPA + ' °C: baja el objetivo o apaga la secadora.';
+            t.textContent = 'Interior a ' + actualTemp.toFixed(1) + ' °C. Temperatura alta (aviso a ' + LIMITE_TAPA + ' °C): la tapa de PLA se empieza a ablandar. Baja el objetivo o apaga la secadora.';
           } else if (targetTemp > LIMITE_TAPA) {
             b.className = 'alarm-banner show warn';
             t.textContent = 'El objetivo (' + targetTemp.toFixed(1) + ' °C) pasa el límite de la tapa de PLA (~' + LIMITE_TAPA + ' °C). Bájalo o imprime la tapa en PETG.';
