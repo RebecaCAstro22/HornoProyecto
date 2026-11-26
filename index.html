@@ -1544,7 +1544,15 @@
       </div>
 
       <div class="header-actions">
-        <button class="mode-switch-btn" id="btnModeSim" onclick="toggleSimMode()" title="Alternar entre simulación local y conexión ESP32">
+        <button class="mode-switch-btn" id="btnConnectUsb" onclick="toggleUsbConnection()" title="Conectar ESP32 por cable USB (Chrome o Edge)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2v14"/>
+            <path d="M8 6l4-4 4 4"/>
+            <circle cx="12" cy="19" r="3"/>
+          </svg>
+          <span id="usbLabel">Conectar USB</span>
+        </button>
+        <button class="mode-switch-btn" id="btnModeSim" onclick="toggleSimMode()" title="Alternar simulación local sin ESP32">
           <span id="simIcon">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
               <rect x="3" y="6" width="18" height="12" rx="4"/>
@@ -1981,6 +1989,7 @@
     let currentModo = 'auto'; // 'auto', 'manual', 'off'
     let manualState = false;  // true = ON, false = OFF en modo manual
     let lastDataAt = 0;       // hora del último dato recibido (ESP32 o simulación)
+    let sensorOK = true;      // false cuando el ESP32 reporta el LM35 desconectado
     let faseESP = '';         // 'NORMAL', 'RAFAGA' o 'ESPERA' (modo automatico del ESP32)
 
     // TIEMPOS (en segundos)
@@ -2219,6 +2228,7 @@
       const pillMsg = document.getElementById('pillStatusMsg');
 
       if (simMode) {
+        if (usbConnected) disconnectUsb();
         btn.classList.add('pilot-active');
         label.textContent = 'Simulación activa';
         icon.innerHTML = ICON_SIM;
@@ -2229,8 +2239,8 @@
         btn.classList.remove('pilot-active');
         label.textContent = 'Modo Piloto';
         icon.innerHTML = ICON_ESP;
-        addLogEntry('Modo Simulación DETENIDO (Esperando ESP32)');
-        setDisconnectedState();
+        addLogEntry('Modo Simulación DETENIDO');
+        if (!usbConnected) setDisconnectedState();
       }
     }
 
@@ -2285,12 +2295,13 @@
       document.getElementById('pillTempActual').textContent = '--.-°C';
       document.getElementById('centerTempVal').textContent = '--.-';
       document.getElementById('actualDisplaySub').textContent = '--.-';
-      document.getElementById('pillStatusMsg').textContent = 'Sin conexión ESP32';
+      document.getElementById('pillStatusMsg').textContent = 'USB desconectado';
       lastDataAt = 0;
+      sensorOK = true;
 
       const pulseBadge = document.getElementById('rangePulseBadge');
       pulseBadge.className = 'range-pulse-indicator';
-      pulseBadge.innerHTML = '<span id="rangePulseDot" style="color:#bfdbfe;">●</span> <span id="rangePulseText">Esperando ESP32</span>';
+      pulseBadge.innerHTML = '<span id="rangePulseDot" style="color:#bfdbfe;">●</span> <span id="rangePulseText">Conecta el USB o Modo Piloto</span>';
 
       const heroBadge = document.getElementById('heroBadgeStatus');
       heroBadge.className = 'badge-suboptimal';
@@ -2419,22 +2430,127 @@
       syncWithESP32();
     }
 
-    // DETECCIÓN DE RUTA DE CONEXIÓN AL ESP32
-    // Si la web se abre desde el ESP32 usa '', si se abre como archivo local file:/// usa http://192.168.4.1
-    const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:') ? '' : 'http://192.168.4.1';
+    // CONEXIÓN POR CABLE USB (WEB SERIAL API - CHROME / EDGE)
+    let usbPort = null;
+    let usbReader = null;
+    let usbWriter = null;
+    let usbConnected = false;
+    let usbReadDone = null;
+    const textEncoder = new TextEncoder();
 
-    async function syncWithESP32() {
-      if (simMode) return;
+    function updateUsbButtonUI(connected) {
+      const btn = document.getElementById('btnConnectUsb');
+      const lbl = document.getElementById('usbLabel');
+      if (!btn || !lbl) return;
+      btn.classList.toggle('pilot-active', connected);
+      lbl.textContent = connected ? 'USB conectado' : 'Conectar USB';
+    }
+
+    async function toggleUsbConnection() {
+      if (usbConnected) {
+        await disconnectUsb();
+        return;
+      }
+      if (!('serial' in navigator)) {
+        document.getElementById('pillStatusMsg').textContent = 'Usa Chrome o Edge para conectar por USB';
+        addLogEntry('Este navegador no soporta Web Serial (usa Chrome o Edge)');
+        return;
+      }
       try {
-        await fetch(`${API_BASE}/set?t=${targetTemp.toFixed(1)}&tol=${toleranceVal.toFixed(1)}&pot=${powerLevel}`);
+        usbPort = await navigator.serial.requestPort();
+        await usbPort.open({ baudRate: 115200 });
+        usbWriter = usbPort.writable.getWriter();
+        usbConnected = true;
+
+        if (simMode) {
+          simMode = false;
+          document.getElementById('btnModeSim').classList.remove('pilot-active');
+          document.getElementById('simLabel').textContent = 'Modo Piloto';
+          document.getElementById('simIcon').innerHTML = ICON_ESP;
+        }
+
+        updateUsbButtonUI(true);
+        document.getElementById('pillStatusMsg').textContent = 'USB conectado';
+        addLogEntry('ESP32 conectado por cable USB');
+        readUsbLoop();
+        syncWithESP32();
+      } catch (err) {
+        if (err && err.name !== 'NotFoundError') {
+          addLogEntry('Error al abrir puerto USB: ' + err.message);
+        }
+        await disconnectUsb();
+      }
+    }
+
+    async function disconnectUsb() {
+      usbConnected = false;
+      try { if (usbReader) await usbReader.cancel(); } catch (e) {}
+      try { if (usbReadDone) await usbReadDone; } catch (e) {}
+      try { if (usbWriter) { usbWriter.releaseLock(); } } catch (e) {}
+      try { if (usbPort) await usbPort.close(); } catch (e) {}
+      usbReader = null;
+      usbWriter = null;
+      usbPort = null;
+      usbReadDone = null;
+      updateUsbButtonUI(false);
+      if (!simMode) setDisconnectedState();
+    }
+
+    async function readUsbLoop() {
+      if (!usbPort || !usbPort.readable) return;
+      const decoder = new TextDecoderStream();
+      usbReadDone = usbPort.readable.pipeTo(decoder.writable).catch(() => {});
+      usbReader = decoder.readable.getReader();
+      let buffer = '';
+      try {
+        while (usbConnected) {
+          const { value, done } = await usbReader.read();
+          if (done) break;
+          if (!value) continue;
+          buffer += value;
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop();
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('{')) continue;
+            try {
+              const data = JSON.parse(trimmed);
+              processEsp32Data(data);
+            } catch (e) {}
+          }
+        }
+      } catch (e) {
+      } finally {
+        try { if (usbReader) usbReader.releaseLock(); } catch (e) {}
+        if (usbConnected) {
+          addLogEntry('Cable USB desconectado');
+          await disconnectUsb();
+        }
+      }
+    }
+
+    if ('serial' in navigator) {
+      navigator.serial.addEventListener('disconnect', (e) => {
+        if (usbPort && e.target === usbPort) {
+          addLogEntry('ESP32 desconectado del puerto USB');
+          disconnectUsb();
+        }
+      });
+    }
+
+    async function sendUsbCommand(cmd) {
+      if (simMode || !usbConnected || !usbWriter) return;
+      try {
+        await usbWriter.write(textEncoder.encode(cmd + '\n'));
       } catch (err) {}
     }
 
+    async function syncWithESP32() {
+      await sendUsbCommand(`SET t=${targetTemp.toFixed(1)} tol=${toleranceVal.toFixed(1)} pot=${powerLevel}`);
+    }
+
     async function enviarModoESP32(modoStr) {
-      if (simMode) return;
-      try {
-        await fetch(`${API_BASE}/modo?m=${modoStr}`);
-      } catch (err) {}
+      await sendUsbCommand(`MODO ${modoStr}`);
     }
 
     // SIMULACIÓN FÍSICA PARA MODO PILOTO EN COMPUTADORA
@@ -2500,36 +2616,20 @@
     }
 
     async function updateLoopInner() {
-      let data = null;
-
       if (simMode) {
-        data = simulateThermalPhysics();
-      } else {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2600);
-          const res = await fetch(API_BASE + '/estado', { signal: controller.signal });
-          clearTimeout(timeoutId);
-          data = await res.json();
-        } catch (e) {
-          data = null;
-        }
+        const data = simulateThermalPhysics();
+        processEsp32Data(data);
+      } else if (!usbConnected) {
+        setDisconnectedState();
+      } else if (lastDataAt > 0 && Date.now() - lastDataAt > 4000) {
+        const pText = document.getElementById('rangePulseText');
+        if (pText) pText.innerHTML = '<span style="color:#2563eb;">Esperando datos por USB...</span>';
       }
+      isUpdating = false;
+    }
 
-      if (!data) {
-        if (!simMode) {
-          consecutiveErrors++;
-          if (consecutiveErrors < 3) {
-            // Mantiene los datos en pantalla y muestra aviso de reconexión sutil
-            const pText = document.getElementById('rangePulseText');
-            if (pText) pText.innerHTML = `<span style="color:#2563eb;">Reintentando conexión con ESP32 (${consecutiveErrors}/3)...</span>`;
-          } else {
-            setDisconnectedState();
-          }
-        }
-        isUpdating = false;
-        return;
-      }
+    function processEsp32Data(data) {
+      if (!data) return;
       consecutiveErrors = 0;
       lastDataAt = Date.now();
 
@@ -2541,49 +2641,103 @@
       }
       faseESP = (!simMode && data.fase) ? data.fase : '';
 
-      if (!data.valido) {
-        const pillMsg = document.getElementById('pillStatusMsg');
-        if (pillMsg) pillMsg.innerHTML = '<span style="color:#2563eb;">Lectura analógica baja en GPIO 34. Verificando sensor...</span>';
-      }
-
-      if (true) {
-
-        if (!simMode) {
-          // Solo sincronizar el objetivo si el usuario no ha tocado los botones en los últimos 3.5 segundos
-          if (Date.now() - ultimoAjusteTiempo > 3500) {
-            if (data.objetivo !== undefined) targetTemp = data.objetivo;
-            if (data.tolerancia !== undefined) toleranceVal = data.tolerancia;
-          }
-          if (data.modo) {
-            if (data.modo === 'MANUAL' && currentModo !== 'manual') {
-              cambiarModoOperacion('manual');
-            } else if (data.modo === 'AUTOMATICO' && currentModo !== 'auto') {
-              cambiarModoOperacion('auto');
-            } else if (data.modo === 'APAGADO' && currentModo !== 'off') {
-              cambiarModoOperacion('off');
-            }
-          }
-          if (currentModo === 'manual') {
-            actualizarBotonManualUI(data.calefaccion);
-          }
-        }
-
-        // Historial
-        tempHistory.push(actualTemp);
-        if (tempHistory.length > MAX_POINTS) tempHistory.shift();
-
-        if (picoMax === null || actualTemp > picoMax) picoMax = actualTemp;
-        if (picoMin === null || actualTemp < picoMin) picoMin = actualTemp;
-
-        computeTimers(triacActive);
-        updateUI();
-        drawRadarChart();
-        drawPreviewChart();
-        if (document.getElementById('viewHistoryPage').classList.contains('active')) {
-          drawLargeHistoryChart();
+      // ALERTA: SENSOR LM35 DESCONECTADO (el ESP32 responde pero el sensor no)
+      const sensorAhora = simMode || data.valido !== false;
+      if (sensorAhora !== sensorOK) {
+        sensorOK = sensorAhora;
+        if (!sensorOK) {
+          addLogEntry('ALERTA: Sensor LM35 desconectado (GPIO 34)');
+          sonarAlertaSensor();
+        } else {
+          addLogEntry('Sensor LM35 reconectado');
         }
       }
-      isUpdating = false;
+
+      if (!sensorOK) {
+        mostrarSensorDesconectado(data);
+        return;
+      }
+
+      if (!simMode) {
+        // Solo sincronizar el objetivo si el usuario no ha tocado los botones en los últimos 3.5 segundos
+        if (Date.now() - ultimoAjusteTiempo > 3500) {
+          if (data.objetivo !== undefined) targetTemp = data.objetivo;
+          if (data.tolerancia !== undefined) toleranceVal = data.tolerancia;
+        }
+        if (data.modo) {
+          if (data.modo === 'MANUAL' && currentModo !== 'manual') {
+            cambiarModoOperacion('manual');
+          } else if (data.modo === 'AUTOMATICO' && currentModo !== 'auto') {
+            cambiarModoOperacion('auto');
+          } else if (data.modo === 'APAGADO' && currentModo !== 'off') {
+            cambiarModoOperacion('off');
+          }
+        }
+        if (currentModo === 'manual') {
+          actualizarBotonManualUI(data.calefaccion);
+        }
+      }
+
+      // Historial
+      tempHistory.push(actualTemp);
+      if (tempHistory.length > MAX_POINTS) tempHistory.shift();
+
+      if (picoMax === null || actualTemp > picoMax) picoMax = actualTemp;
+      if (picoMin === null || actualTemp < picoMin) picoMin = actualTemp;
+
+      computeTimers(triacActive);
+      updateUI();
+      drawRadarChart();
+      drawPreviewChart();
+      if (document.getElementById('viewHistoryPage').classList.contains('active')) {
+        drawLargeHistoryChart();
+      }
+    }
+
+    // PANTALLA CUANDO EL LM35 ESTÁ DESCONECTADO
+    function mostrarSensorDesconectado(data) {
+      if (data.objetivo !== undefined && Date.now() - ultimoAjusteTiempo > 3500) targetTemp = data.objetivo;
+      if (data.modo === 'MANUAL' && currentModo !== 'manual') cambiarModoOperacion('manual');
+      else if (data.modo === 'AUTOMATICO' && currentModo !== 'auto') cambiarModoOperacion('auto');
+      else if (data.modo === 'APAGADO' && currentModo !== 'off') cambiarModoOperacion('off');
+      if (currentModo === 'manual') actualizarBotonManualUI(data.calefaccion);
+
+      document.getElementById('pillTempActual').textContent = '--.-°C';
+      document.getElementById('centerTempVal').textContent = '--.-';
+      document.getElementById('actualDisplaySub').textContent = '--.-';
+      document.getElementById('pillStatusMsg').textContent = 'Sensor desconectado';
+
+      const pulseBadge = document.getElementById('rangePulseBadge');
+      const pulseText = document.getElementById('rangePulseText');
+      pulseBadge.className = 'range-pulse-indicator heating-pulse';
+      if (pulseText) pulseText.textContent = 'Revisa el cable del LM35';
+
+      const heroBadge = document.getElementById('heroBadgeStatus');
+      heroBadge.className = 'badge-suboptimal';
+      heroBadge.textContent = 'Sin sensor';
+
+      const rangeBadge = document.getElementById('rangeBadgeText');
+      rangeBadge.textContent = 'Sin sensor';
+      rangeBadge.style.background = '#fee2e2';
+      rangeBadge.style.color = '#b91c1c';
+
+      document.getElementById('arcFillDynamic').style.strokeDashoffset = 580;
+      updateLunchboxSim(triacActive, true);
+    }
+
+    // PITIDO CORTO DE ALERTA (el navegador puede bloquearlo hasta que hagas clic en la página)
+    function sonarAlertaSensor() {
+      try {
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        [0, 0.3, 0.6].forEach(t0 => {
+          const o = ac.createOscillator(), g = ac.createGain();
+          o.frequency.value = 880;
+          g.gain.value = 0.15;
+          o.connect(g); g.connect(ac.destination);
+          o.start(ac.currentTime + t0);
+          o.stop(ac.currentTime + t0 + 0.18);
+        });
+      } catch (e) { }
     }
 
     // COMPUTAR TIEMPOS Y PULSOS DE POTENCIA
@@ -3919,7 +4073,7 @@
         const tip = project(-85, -40, 62 + dz);
         ctx.fillStyle = '#ffffff';
         ctx.beginPath(); ctx.arc(tip[0], tip[1], 2.5, 0, Math.PI * 2); ctx.fill();
-        const txt = 'LM35 · ' + actualTemp.toFixed(1) + ' °C';
+        const txt = sensorOK ? 'LM35 · ' + actualTemp.toFixed(1) + ' °C' : 'LM35 · sin señal';
         ctx.font = '600 11px Inter, system-ui, sans-serif';
         const w = ctx.measureText(txt).width + 14;
         let x = tip[0] - w - 10, y = tip[1] + 6;
@@ -4023,7 +4177,10 @@
         }
         const b = document.getElementById('alarmBanner'), t = document.getElementById('alarmText');
         if (b && t) {
-          if (online && actualTemp >= LIMITE_TAPA) {
+          if (online && !simMode && !sensorOK) {
+            b.className = 'alarm-banner show';
+            t.textContent = 'Sensor de temperatura (LM35) desconectado. El ESP32 está conectado pero no recibe lectura en GPIO 34. La secadora se apagó en modo automático: revisa el cable del sensor.';
+          } else if (online && actualTemp >= LIMITE_TAPA) {
             b.className = 'alarm-banner show';
             t.textContent = 'Interior a ' + actualTemp.toFixed(1) + ' °C. La tapa de PLA se empieza a ablandar arriba de ~' + LIMITE_TAPA + ' °C: baja el objetivo o apaga la secadora.';
           } else if (targetTemp > LIMITE_TAPA) {
